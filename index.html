@@ -346,7 +346,8 @@ textarea.field-input { min-height: 80px; resize: none; font-family: monospace; f
         </div>
         <div class="step-label">Step 2 of 3</div>
         <h2 class="section-title">Take Photo</h2>
-        <p class="section-sub">Base cards face-down (back up) · Parallels face-up · Duplicates stacked</p>        <div class="camera-area" id="camera-tap-area" onclick="triggerCamera()">
+        <p class="section-sub">Base cards face-down (back up) · Parallels face-up · Duplicates stacked</p>
+        <div class="camera-area" id="camera-tap-area" onclick="triggerCamera()">
           <div class="cam-icon">📷</div>
           <h3>Tap to photograph cards</h3>
           <p>Backs up for base cards · Fronts up for parallels · Stack dupes</p>
@@ -625,11 +626,11 @@ async function loadUserInfo() {
     const r = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
     const u = await r.json();
     document.getElementById('user-label').textContent = u.email || 'Signed in';
-    document.getElementById('settings-email').textContent = u.email || '—';
+    document.getElementById('settings-email').textContent = u.email || 'â';
   } catch(e) {}
 }
 
-// ─── GOOGLE API ───────────────────────────────────────────────────────────────
+// âââ GOOGLE API âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function gFetch(url, opts={}) {
   if (!accessToken) throw new Error('Not authenticated');
   const headers = { 'Authorization': `Bearer ${accessToken}`, ...(opts.headers||{}) };
@@ -652,7 +653,7 @@ async function loadSheetsList(forceRefresh=false) {
 
 function updateScanSelect() {
   const sel = document.getElementById('set-select');
-  sel.innerHTML = '<option value="">— Choose a set —</option>';
+  sel.innerHTML = '<option value="">â Choose a set â</option>';
   allSheets.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s.id;
@@ -667,10 +668,10 @@ function updateSetsUI() {
 
 function renderSetsList(sheets) {
   const el = document.getElementById('sets-list');
-  if (!sheets.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📂</div><p>No sets found in your Drive folder</p></div>'; return; }
+  if (!sheets.length) { el.innerHTML = '<div class="empty-state"><div class="icon">ð</div><p>No sets found in your Drive folder</p></div>'; return; }
   el.innerHTML = sheets.map(s => `
     <div class="sheet-item" onclick="openSheetUrl('${s.id}')">
-      <div class="sheet-icon">📊</div>
+      <div class="sheet-icon">ð</div>
       <div>
         <div class="sheet-name">${s.name}</div>
         <div class="sheet-meta">Modified ${formatDate(s.modifiedTime)}</div>
@@ -689,25 +690,25 @@ function openSheetUrl(id) {
 }
 
 function formatDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'â';
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
 }
 
-// ─── SHEET DATA ───────────────────────────────────────────────────────────────
+// âââ SHEET DATA âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function loadSelectedSet() {
   const id = document.getElementById('set-select').value;
   if (!id) return;
   document.getElementById('load-set-btn').disabled = true;
   const loadingEl = document.getElementById('set-loading');
   loadingEl.style.display = 'block';
-  loadingEl.textContent = 'Loading set data…';
+  loadingEl.textContent = 'Loading set dataâ¦';
   try {
     const sheetName = allSheets.find(s=>s.id===id)?.name || 'Set';
     await loadSheetData(id);
     currentSheetId = id;
     currentSheetName = sheetName;
-    loadingEl.textContent = '🧠 Looking up set info…';
+    loadingEl.textContent = 'ð§  Looking up set infoâ¦';
     await loadSetInfo(sheetName);
     updateSetLabel(sheetName);
     document.getElementById('relookup-btn').style.display = '';
@@ -715,7 +716,7 @@ async function loadSelectedSet() {
     const parallelCount = window._setInfo?.parallels?.length || 0;
     const varCount = (window._setInfo?.variations?.length || 0) + (window._setInfo?.short_prints?.length || 0);
     showSetInfoReview(sheetName);
-    showToast(`Loaded ${currentSheetData.length} cards · ${parallelCount} parallels, ${varCount} variations`, 'success');
+    showToast(`Loaded ${currentSheetData.length} cards Â· ${parallelCount} parallels, ${varCount} variations`, 'success');
   } catch(e) {
     loadingEl.style.display = 'none';
     showToast('Failed to load sheet: ' + e.message, 'error');
@@ -758,18 +759,18 @@ async function loadSheetData(id) {
     const data = await r.json();
     const rows = _parseCardRows(data.values || []);
     if (rows.length > 0) {
-      console.log(`[CardCaddy] Loaded tab "${tab}" — ${rows.length} card rows`);
+      console.log(`[CardCaddy] Loaded tab "${tab}" â ${rows.length} card rows`);
       currentSheetData = rows;
       return;
     }
   }
 
-  throw new Error('No card data found — make sure the sheet has a "Master" tab');
+  throw new Error('No card data found â make sure the sheet has a "Master" tab');
 }
 
 function normalizeName(name) {
   return (name || '').toLowerCase().trim()
-    .replace(/\./g, '')        // Fernando Tatis Jr. → Fernando Tatis Jr
+    .replace(/\./g, '')        // Fernando Tatis Jr. â Fernando Tatis Jr
     .replace(/\s+/g, ' ');     // collapse whitespace
 }
 
@@ -822,7 +823,7 @@ function pickBestRow(rows, parallelDetected) {
     });
     if (match) return match;
   } else {
-    // Looking for a base card — prefer rows with TYPE = "Base" or empty/null TYPE
+    // Looking for a base card â prefer rows with TYPE = "Base" or empty/null TYPE
     const base = rows.find(({data}) => {
       const t = (data[COL.TYPE] || '').toLowerCase().trim();
       return t === '' || t === 'base' || t === 'base set' || t === 'base card';
@@ -838,7 +839,7 @@ function pickBestRow(rows, parallelDetected) {
 // 1. Try card number (exact, most precise)
 // 2. Fall back to player name + parallel-type-aware row selection
 // Returns {match, method, allByName}
-// claimedRows: set of rowNums already matched by earlier cards in this batch —
+// claimedRows: set of rowNums already matched by earlier cards in this batch â
 //   used to route multiple same-player cards to different rows.
 function findCard(cardNum, playerName, parallelDetected, claimedRows) {
   const byNum = findCardByNumber(cardNum);
@@ -863,7 +864,7 @@ function findCard(cardNum, playerName, parallelDetected, claimedRows) {
   };
 }
 
-// ─── SET INTELLIGENCE ─────────────────────────────────────────────────────────
+// âââ SET INTELLIGENCE âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function loadSetInfo(setName) {
   const cacheKey = `cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
   const cached = localStorage.getItem(cacheKey);
@@ -877,13 +878,13 @@ async function loadSetInfo(setName) {
   const statusEl = document.getElementById('set-loading');
   const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
 
-  // Debug log — visible in UI via debug button
+  // Debug log â visible in UI via debug button
   const dbg = [];
   window._fetchDebugLog = dbg;
   const log = (msg) => { dbg.push(msg); console.log('[CardCaddy]', msg); };
-  const warn = (msg) => { dbg.push('⚠ ' + msg); console.warn('[CardCaddy]', msg); };
+  const warn = (msg) => { dbg.push('â  ' + msg); console.warn('[CardCaddy]', msg); };
 
-  // CORS proxy waterfall — tried in order until one works
+  // CORS proxy waterfall â tried in order until one works
   const PROXIES = [
     { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?${encodeURIComponent(u)}` },
     { name: 'allorigins',     fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
@@ -891,8 +892,8 @@ async function loadSetInfo(setName) {
     { name: 'direct',         fn: u => u },
   ];
 
-  // ── STEP 1: Ask Claude to generate the checklistinsider URL ──
-  setStatus('🧠 Identifying set…');
+  // ââ STEP 1: Ask Claude to generate the checklistinsider URL ââ
+  setStatus('ð§  Identifying setâ¦');
   let checklistUrl = null;
   let urlAlts = [];
   try {
@@ -902,10 +903,10 @@ Identify the exact baseball card set and generate the checklistinsider.com URL(s
 The URL slug pattern is: {year}-{brand}-{series}-baseball (all lowercase, hyphens, no trailing slash)
 
 Examples:
-- "2024-Topps-Archives-Baseball-Checklist" → primary: "2024-topps-archives-baseball"
-- "2023 Topps Heritage" → primary: "2023-topps-heritage-baseball"
-- "2025-Topps-Series-1-Baseball" → primary: "2025-topps-series-1-baseball"
-- "2024 Bowman Draft" → primary: "2024-bowman-draft-baseball", alt: "2024-bowman-draft"
+- "2024-Topps-Archives-Baseball-Checklist" â primary: "2024-topps-archives-baseball"
+- "2023 Topps Heritage" â primary: "2023-topps-heritage-baseball"
+- "2025-Topps-Series-1-Baseball" â primary: "2025-topps-series-1-baseball"
+- "2024 Bowman Draft" â primary: "2024-bowman-draft-baseball", alt: "2024-bowman-draft"
 
 Return ONLY valid JSON (no markdown), with the most likely slug first, and 1-2 alt slugs if plausible:
 {"primary":"SLUG","alts":["SLUG2"]}`);
@@ -924,14 +925,14 @@ Return ONLY valid JSON (no markdown), with the most likely slug first, and 1-2 a
     warn('Step 1 (URL gen) failed: ' + e.message);
   }
 
-  // ── STEP 2: Try fetching the page via proxy waterfall ──
+  // ââ STEP 2: Try fetching the page via proxy waterfall ââ
   if (checklistUrl) {
     const urlsToTry = [checklistUrl, ...urlAlts];
     outer: for (const targetUrl of urlsToTry) {
       for (const proxy of PROXIES) {
         const proxyUrl = proxy.fn(targetUrl);
-        setStatus(`🌐 Fetching via ${proxy.name}…`);
-        log(`Trying ${proxy.name} → ${targetUrl}`);
+        setStatus(`ð Fetching via ${proxy.name|â¦ `);
+        log(`Trying ${proxy.name} â ${targetUrl}`);
         try {
           const controller = new AbortController();
           const tid = setTimeout(() => controller.abort(), 15000);
@@ -950,7 +951,7 @@ Return ONLY valid JSON (no markdown), with the most likely slug first, and 1-2 a
             warn(`${proxy.name}: 404 page content detected`); continue;
           }
 
-          // Strip HTML → plain text
+          // Strip HTML â plain text
           const tmp = document.createElement('div');
           tmp.innerHTML = html;
           tmp.querySelectorAll('script,style,nav,header,footer,iframe,noscript').forEach(el => el.remove());
@@ -962,12 +963,12 @@ Return ONLY valid JSON (no markdown), with the most likely slug first, and 1-2 a
           const hasCardContent = ptlc.includes('parallel') || ptlc.includes('foil') || ptlc.includes('checklist') || ptlc.includes('short print') || ptlc.includes('variation') || ptlc.includes('topps') || ptlc.includes('bowman') || ptlc.includes('panini');
           if (!hasCardContent) { warn(`${proxy.name}: page doesn't look like a card checklist`); continue; }
 
-          // ── STEP 3: Claude parses the page ──
-          setStatus('🧠 Parsing set info…');
-          log('Sending to Claude for parsing…');
-          // Use first 40K chars — reduces output length needed
+          // ââ STEP 3: Claude parses the page ââ
+          setStatus('ð§  Parsing set infoâ¦');
+          log('Sending to Claude for parsingâ¦');
+          // Use first 40K chars â reduces output length needed
           const pageSlice = pageText.slice(0, 40000);
-          const parseText = await claudeCall(apiKey, 4096, `Parse this baseball card checklist page and extract ALL parallel and variation information. Be thorough — include EVERY parallel, even if there are many. Keep field values SHORT (under 60 chars each) to avoid truncation.
+          const parseText = await claudeCall(apiKey, 4096, `Parse this baseball card checklist page and extract ALL parallel and variation information. Be thorough â include EVERY parallel, even if there are many. Keep field values SHORT (under 60 chars each) to avoid truncation.
 
 PAGE TEXT:
 ${pageSlice}
@@ -989,7 +990,7 @@ Rules: print_run = serial number like "/99" or null if unnumbered. notes = retai
             parsed = JSON.parse(cleanText);
           } catch(e) {
             // Try to repair truncated JSON by finding the last complete object
-            log('JSON truncated — attempting repair…');
+            log('JSON truncated â attempting repairâ¦');
             try {
               // Find last complete parallel entry and close the structure
               let repaired = cleanText;
@@ -1001,7 +1002,7 @@ Rules: print_run = serial number like "/99" or null if unnumbered. notes = retai
               repaired += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
               parsed = JSON.parse(repaired);
               parsed._truncated = true;
-              log(`Repair succeeded — truncated response recovered`);
+              log(`Repair succeeded â truncated response recovered`);
             } catch(e2) {
               warn(`Claude parse JSON failed (even after repair): ${e.message} | response: ${parseText.slice(0,200)}`);
             }
@@ -1013,7 +1014,7 @@ Rules: print_run = serial number like "/99" or null if unnumbered. notes = retai
             parsed._proxy = proxy.name;
             window._setInfo = parsed;
             localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
-            log(`✅ Web fetch succeeded via ${proxy.name}! ${parsed.parallels?.length} parallels, ${parsed.variations?.length} variations${parsed._truncated?' (partial — response was truncated)':''}`);
+            log(`â Web fetch succeeded via ${proxy.name}! ${parsed.parallels?.length} parallels, ${parsed.variations?.length} variations${parsed._truncated?' (partial â response was truncated)':''}`);
             return;
           }
         } catch(fetchErr) {
@@ -1021,11 +1022,11 @@ Rules: print_run = serial number like "/99" or null if unnumbered. notes = retai
         }
       }
     }
-    warn('All proxies and URLs exhausted — falling back to Claude memory');
+    warn('All proxies and URLs exhausted â falling back to Claude memory');
   }
 
-  // ── FALLBACK: Claude memory ──
-  setStatus('🧠 Looking up from memory…');
+  // ââ FALLBACK: Claude memory ââ
+  setStatus('ð§ Looking up from memoryâ¦');
   log('Using Claude memory fallback');
   try {
     const text = await claudeCall(apiKey, 1500, `You are a baseball card expert. For the set "${setName}", list ALL known parallels, short prints, image variations, and special cards. Be thorough and specific.
@@ -1052,7 +1053,7 @@ If you don't have reliable data for this specific set, return: {"parallels":[],"
   }
 }
 
-// Shared Claude API call helper — returns the text content of the first response
+// Shared Claude API call helper â returns the text content of the first response
 async function claudeCall(apiKey, maxTokens, prompt) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -1087,7 +1088,7 @@ async function markCardCollected(rowNum, note='', alreadyCollected=false) {
   const updates = [];
 
   if (!alreadyCollected) {
-    // New card — mark as collected
+    // New card â mark as collected
     updates.push({ range: `A${rowNum}`, values: [['x']] });
   }
 
@@ -1116,7 +1117,7 @@ async function markCardCollected(rowNum, note='', alreadyCollected=false) {
   }
 }
 
-// ─── SCAN FLOW ─────────────────────────────────────────────────────────────────
+// âââ SCAN FLOW âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function onSetSelected() {
   document.getElementById('load-set-btn').disabled = !document.getElementById('set-select').value;
 }
@@ -1138,7 +1139,7 @@ function onPhotoSelected(evt) {
     document.getElementById('camera-tap-area').style.display = 'none';
     document.getElementById('photo-actions').classList.add('visible');
     document.getElementById('scan-btn').disabled = true;
-    document.getElementById('img-size-label').textContent = 'Compressing…';
+    document.getElementById('img-size-label').textContent = 'Compressingâ¦';
 
     // Compress to stay under API 5MB limit
     const compressed = await compressImage(rawData);
@@ -1149,7 +1150,7 @@ function onPhotoSelected(evt) {
     const bytes = Math.round((compressed.length * 3) / 4);
     const kb = Math.round(bytes / 1024);
     const sizeStr = kb < 1024 ? `${kb} KB` : `${(kb/1024).toFixed(1)} MB`;
-    document.getElementById('img-size-label').textContent = `📐 ${sizeStr} — ready`;
+    document.getElementById('img-size-label').textContent = `ð ${sizeStr} â ready`;
     document.getElementById('scan-btn').disabled = false;
   };
   reader.readAsDataURL(file);
@@ -1188,7 +1189,7 @@ async function compressImage(dataUrl, maxPx = 1568, quality = 0.82) {
 
 async function runScan() {
   if (!window._photoData) return;
-  if (!getApiKey()) { showToast('No API key — check Settings', 'error'); return; }
+  if (!getApiKey()) { showToast('No API key â check Settings', 'error'); return; }
 
   goScanStep(3); // show processing
 
@@ -1199,7 +1200,7 @@ async function runScan() {
     // Get set context to help Claude
     const setName = document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || '';
 
-    // Build sheet roster — grounds Claude to ONLY players in the spreadsheet
+    // Build sheet roster â grounds Claude to ONLY players in the spreadsheet
     const rosterLines = (currentSheetData || [])
       .filter(r => r.data[COL.PLAYER] && r.data[COL.NUM])
       .map(r => {
@@ -1216,13 +1217,13 @@ async function runScan() {
       const si = window._setInfo;
       if (si.parallels?.length) {
         const pList = si.parallels.map(p =>
-          `  • ${p.name}${p.print_run ? ' (' + p.print_run + ')' : ''}: ${p.visual}`
+          `   â¢ ${p.name}${p.print_run ? ' (' + p.print_run + ')' : ''}: ${p.visual}`
         ).join('\n');
-        setInfoText += `\nKNOWN PARALLEL VISUAL TREATMENTS (BASE CARDS ONLY — these do not apply to insert cards):\n${pList}\n`;
+        setInfoText += `\nKNOWN PARALLEL VISUAL TTREATMENTS (BASE CARDS ONLY â these do not apply to insert cards):\n${pList}\n`;
       }
       if (si.variations?.length || si.short_prints?.length) {
         const vList = [...(si.variations||[]), ...(si.short_prints||[])].map(v =>
-          `  • ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`
+          `   â¢ ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`
         ).join('\n');
         setInfoText += `\nKNOWN VARIATIONS/SPs:\n${vList}\n`;
       }
@@ -1232,7 +1233,7 @@ async function runScan() {
     const corrections = getSetCorrections(currentSheetName || setName);
     let correctionsText = '';
     if (corrections.length) {
-      correctionsText = `\nLEARNED RULES FROM PREVIOUS SCANS OF THIS SET:\n${corrections.map(c => `  • ${c.lesson}`).join('\n')}\n`;
+      correctionsText = `\nLEARNED RULES FROM PREVIOUS SCANS OF THIS SET:\n${corrections.map(c => `  â¢ ${c.lesson}`).join('\n')}\n`;
     }
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1252,7 +1253,7 @@ async function runScan() {
             { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
             { type: 'text', text: `You are scanning baseball cards and matching them to a collector's spreadsheet. Your job is to read text from the cards in the photo and match each one to an entry in the checklist below.
 
-COLLECTOR'S CHECKLIST — you may ONLY identify players from this list:
+COLLECTOR'S CHECKLIST â you may ONLY identify players from this list:
 ${rosterLines || '(no roster loaded)'}
 ${setInfoText}${correctionsText}
 PHOTO LAYOUT:
@@ -1260,141 +1261,73 @@ PHOTO LAYOUT:
 - FACE-UP cards (fronts showing): read the player name from the front. Identify the parallel treatment visually (border color, foil finish, etc.).
 
 For EACH card (or stack of identical cards) you can see, return:
-1. cardNumber — read from back if face-down, from front corners if face-up. "unknown" only if truly unreadable.
-2. playerName — must match a name from the CHECKLIST. If you can read a name but it's not in the list, still report it with confidence "low".
-3. teamName — as printed on card.
-4. facing — "back" or "front"
-5. parallel — visual treatment on face-up cards. CRITICAL DISTINCTION: base set foilboard parallels (Pink, Gold, Blue, Green, Purple, Red, Orange, Silver borders; Chrome, Refractor, Foil, Sparkle finishes) ONLY appear on BASE SET cards. INSERT cards (Own the Game, Fan Favorites, Nicknames, etc.) are entirely separate products with their own unique designs — they do NOT carry base set foilboard parallels. If you see a Pink Border treatment on what appears to be an insert card, you are likely looking at the base card version of that player, not the insert. Distinguish by card design: base cards use the 1961/1970/1994 retro Topps designs; insert cards have completely different layouts. Return null for plain base cards with no parallel treatment.
-6. serial — fraction like "23/50" or "/99". null if absent.
-7. count — total copies in stack. Look for offset edges, fanned card corners, extra borders peeking out. Count every copy.
-8. confidence — "high" if you can clearly read the full player name AND it matches the checklist. "medium" if the read is partial or uncertain. "low" if you're inferring or guessing.
-9. inHolder — true if the card appears to be inside a sleeve, penny sleeve, top loader, magnetic case, or any protective holder (look for plastic edges, reflections on a clear surface, or the card visible behind protective material). false otherwise.
+1. cardNumber â read from back if face-down, from front corners if face-up. "unknown" only if truly unreadable.
+2. playerName â must match a name from the CHECKLIST. If you can read a name but it's not in the list, still report it with confidence "low".
+3. teamName â as printed on card.
+4. facing â "back" or "front"
+5. parallel â visual treatment on face-up cards. CRITICAL DISTINCTION: base set foilboard parallels (Pink, Gold, Blue, Green, Purple, Red, Orange, Silver borders; Chrome, Refractor, Foil, Sparkle finishes) ONLY appear on BASE SET cards. INSERT cards (Own the Game, Fan Favorites, Nicknames, etc.) are entirely separate products with their own unique designs â they do NOT carry base set foilboard parallels. If you see a Pink Border treatment on what appears to be an insert card, you are likely looking at the base card version of that player, not the insert. Distinguish by card design: base cards use the 1961/1970/1994 retro Topps designs; insert cards have completely different layouts. Return null for plain base cards with no parallel treatment.
+6. serial â fraction like "23/50" or "/99". null if absent.
+7. count â total copies in stack. Look for offset edges, fanned card corners, extra borders peeking out. Count every copy.
+8. confidence â "high" if you can clearly read the full player name AND it matches the checklist. "medium" if the read is partial or uncertain. "low" if you're inferring or guessing.
+9. inHolder â true if the card appears to be inside a sleeve, penny sleeve, top loader, magnetic case, or any protective holder (look for plastic edges, reflections on a clear surface, or the card visible behind protective material). false otherwise.
 
 Return ONLY valid JSON array, no markdown. One entry per unique card or stack:
 [
   {"cardNumber":"207","playerName":"Jackson Merrill","teamName":"San Diego Padres","facing":"back","parallel":null,"serial":null,"count":1,"confidence":"high","inHolder":false},
   {"cardNumber":"unknown","playerName":"Fernando Tatis Jr.","teamName":"San Diego Padres","facing":"front","parallel":"Pink Border","serial":null,"count":2,"confidence":"high","inHolder":false},
-  {"cardNumber":"156","playerName":"Jackson Merrill","teamName":"San Diego Padres","facing":"front","parallel":null,"serial":null,"count":1,"confidence":"low","inHolder":true}
+  {"cardNumber":"156","playerName":"Jackson Merrill","teamName":"San Diego Padres","facing":"front","parallel":null,"serial":null,"count":1,"confidence":"low(true","inHolder":true}
 ]
 
-CRITICAL RULES:
-- ONLY report players from the CHECKLIST. Do not identify anyone not on that list, even if you recognize them from your knowledge of baseball card sets.
-- If you cannot clearly read a player name, report what you can see with confidence "low" — do not fill in from memory.
-- Every identification must be based on text or visuals you can actually see in this image, not set knowledge.
-- If a card is inside a sleeve, top loader, or holder, STILL report it — set inHolder: true and confidence: "low". Do not skip it. The collector will be prompted to retake it outside the holder.
-- Each physical card or stack = exactly ONE entry. Never duplicate.` }
-          ]
-        }]
-      })
-    });
+CRITICAL RULES8HÓHÜ^YÈÛHHÒPÒÓTÕÈÝY[YH[[ÛHÝÛ]Ý][Y[ÝHXÛÙÛ^H[HÛH[ÝÛÝÛYÙHÙÙX[ØÙ]ËHY[ÝHØ[ÝÛXHXYH^Y[YKÜÚ][ÝHØ[ÙYHÚ]ÛÛY[ÙHÝÈ8 $ÈÝ[[ÛHY[[ÜKH]HY[YXØ][Û]ÝHÙYÛ^ÜÝX[È[ÝHØ[XÝX[HÙYH[È[XYÙKÝÙ]ÛÝÛYÙKHYHØÈ[ÚYHHÛY]KÜØYÜÛÕSÜ]8 %Ù][ÛYH[ÛÛY[ÙNÝÈÈÝÚÚ]HÛÛXÝÜÚ[HÛYÈ]ZÙH]Ý]ÚYHHÛHXXÚÚXØ[ØÜÝXÚÈH^XÝHÓH[K]XØ]KBBWBJBJNÂY
+ÜÚÊHÂÛÛÝH]ØZ]ÜÛÛ
+NÂÝÈ]ÈÜÜËYÜØYÙHTHÜ	ÜÜÝ]ßW
+NÂBÛÛÝÝ[H]ØZ]ÜÛÛ
+NÂÛÛÝ^HÝ[ÛÛ[ÌK^[J
+NÂËÈÙHÓÓØÝB]ØÎÂHÂËÈÝXÙÝÛÛÙHØÚÜÈYÙ[ÛÛÝÛX[H^XÙJ×ÛÛËÙË	ÉÊKXÙJ×ËÙË	ÉÊK[J
+NÂØÈHÓÓÙJÛX[NÂHØ]Ú
+JHÂÛÛÝX]ÚH^X]Ú
+×Ö×××JKÊNÂY
+X]Ú
+HØÈHÓÓÙJX]ÚÌJNÂ[ÙHÝÈ]ÈÜ	ÐÛÝ[ÝÙHØ]HÛHÜÛÙIÊNÂBËÈXÚÈÚXÚÚY]ÝÜÈ]H[XYHY[ÛZ[YY[È]ÚÛÂËÈ][HØÈÛHHØ[YH^YÝ]HÈY[ÝÜËÛÛÝÛZ[YYÝÜÈH]ÈÙ]
 
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error?.message || `API error ${resp.status}`);
-    }
+NÂY[YYYØÈHØËX]ÐØOÂÛÛÝÈX]ÚY]Ù[S[YHHH[Ø
+]ÐØØ[X]ÐØ^Y[YK]ÐØ[[ÛZ[YYÝÜÊNÂY
+X]Ú
+HÛZ[YYÝÜËY
+X]ÚÝÓ[JNÂËÈÛÛHØ[XÚ]Ý]]]][ÈH]ÈØXÝÛHÛ]YBÛÛÝØ[XH
+X]Ú	Y]ÙOOH	Û[YIÈ	
+]ÐØØ[X]ÐØØ[XÓÝÙØÙJ
+HOOH	Ý[ÛÝÛÊJBÈ
+X]Ú]VÐÓÓSWH	ÏÉÊKÔÝ[Ê
+K[J
+B]ÐØØ[XÂËÈX[HZÛX]ÚÚXÚÎYX]ÚYH[YH[Û]YIÜÈX[H8¢hÚY]X[KËÈ]	ÜÈHZÙ[HH[XÚ[][Û8 %ZXÝHX]Ú[[K][Y]YX]ÚHX]ÚÂ][Y]YY]ÙHY]ÙÂY
+X]Ú	Y]ÙOOH	Û[YIÊHÂÛÛÝÚY]X[HHÜX[^S[YJX]Ú]VÐÓÓPSWH	ÉÊNÂÛÛÝ]XÝYX[HHÜX[^S[YJ]ÐØX[S[YH	ÉÊNÂY
+ÚY]X[H	]XÝYX[JHÂËÈX[È]ÝÚH]XÝÛHÚYÛYXØ[ÛÜ
+Ú]H[YHÜXØÛÝ
+BÛÛÝÚY]ÛÜÈHÚY]X[KÜ]
+	È	ÊK[ÈOË[ÝÊNÂÛÛÝ]XÝYÛÜÈH]XÝYX[KÜ]
+	È	ÊK[ÈOË[ÝÊNÂÛÛÝX[Ð[YÛHÚY]ÛÜËÛÛYJÈO]XÝYÛÜË[ÛYÊÊJNÂY
+]X[Ð[YÛHÂËÈX[HZÛX]ÚH[XÚ[][ÛÜÈX]Ú[Y]YX]ÚH[Â[Y]YY]ÙH[ÂBBBËÈZ[HÚ]]XHØXÝ8 %]]]]H]ÐØXÝBÛÛÝÛÛ][H
+]ÐØÛÛY[ÙH	ÛÝÉÊKÓÝÙØÙJ
+NÂÛÛÝÒ[ÛHH]ÐØ[ÛÂÛÛÝØHÂ]ÐØØ[XX]Ú[Y]YX]ÚX]ÚY]Ù[Y]YY]Ù][TÝÜÑ^Ý[S[YK[ÝKÛÛYY[ÙKÚÚY[ÙKÝN	ÉËÛÛY[ÙS][ÛÛ][ÝÐÛÛY[ÙNÛÛ][OOH	ÚYÚ	ÈÒ[ÛX[X[R[ÛYY[ÙK[ÛÒ[ÛNÂØÝHHZ[Y][ÝJØ[Y]YX]Ú
+NÂ]ØÂJNÂËÈYXØ]NYÛÈY[YYYØÈXÈHØ[YHÚY]ÝËËÈÛHYÙH[HY^HHHÐSQHØ
+Ø[YHØ[XHYHÝXÚÊKËÈYY[Ø[XÈXÈHØ[YHÝË]	ÜÈHX]Ú[ÈÛÛXÝ8 %ËÈÙYÝÚXH[ÛXHÙXÛÛIÜÈX]ÚÛÈ]ÚÝÜÈÈ[X]ÚYÛÛÝÝÔ[XHHßNÈËÈÝÓ[H8¡¤[^Ù[XH[B[Ý[ÛØ[RÙ^JHÂ]
+	Ý[ÛÝÛÊKÔÝ[Ê
+KÓÝÙØÙJ
+KXÙJÖ×K^NWKÙË	ÉÊNÂBY[YYYØËÜXXÚ
 
-    const result = await resp.json();
-    const text = result.content[0].text.trim();
-
-    // Parse JSON robustly
-    let cards;
-    try {
-      // Strip markdown code blocks if present
-      const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-      cards = JSON.parse(clean);
-    } catch(e) {
-      const match = text.match(/\[[\s\S]*\]/);
-      if (match) cards = JSON.parse(match[0]);
-      else throw new Error('Could not parse card data from response');
-    }
-
-    // Track which sheet rows have already been claimed in this batch so
-    // multiple cards from the same player route to different rows.
-    const claimedRows = new Set();
-    identifiedCards = cards.map(rawCard => {
-      const { match, method, allByName } = findCard(rawCard.cardNumber, rawCard.playerName, rawCard.parallel, claimedRows);
-      if (match) claimedRows.add(match.rowNum);
-
-      // Resolve card number without mutating the raw object from Claude
-      const cardNumber = (match && method === 'name' && (!rawCard.cardNumber || rawCard.cardNumber.toLowerCase() === 'unknown'))
-        ? (match.data[COL.NUM] || '?').toString().trim()
-        : rawCard.cardNumber;
-
-      // Team mismatch check: if matched by name and Claude's team ≠ sheet team,
-      // it's very likely a hallucination — reject the match entirely.
-      let validatedMatch = match;
-      let validatedMethod = method;
-      if (match && method === 'name') {
-        const sheetTeam = normalizeName(match.data[COL.TEAM] || '');
-        const detectedTeam = normalizeName(rawCard.teamName || '');
-        if (sheetTeam && detectedTeam) {
-          // Teams must share at least one significant word (city name or mascot)
-          const sheetWords = sheetTeam.split(' ').filter(w => w.length > 3);
-          const detectedWords = detectedTeam.split(' ').filter(w => w.length > 3);
-          const teamsAlign = sheetWords.some(w => detectedWords.includes(w));
-          if (!teamsAlign) {
-            // Team mismatch = hallucination, drop this match
-            validatedMatch = null;
-            validatedMethod = null;
-          }
-        }
-      }
-
-      // Build a fresh mutable object — never mutate rawCard directly
-      const confLevel = (rawCard.confidence || 'low').toLowerCase();
-      const isInHolder = !!rawCard.inHolder;
-      const card = {
-        ...rawCard,
-        cardNumber,
-        match: validatedMatch,
-        matchMethod: validatedMethod,
-        multipleRowsExist: allByName.length > 1,
-        confirmed: false,
-        skipped: false,
-        note: '',
-        confidenceLevel: confLevel,
-        lowConfidence: confLevel !== 'high' || isInHolder,
-        manuallyIncluded: false,
-        inHolder: isInHolder
-      };
-      card.note = buildDefaultNote(card, validatedMatch);
-      return card;
-    });
-
-    // Deduplicate: if two identified cards map to the same sheet row,
-    // only merge them if they are the SAME card (same card number = true stack).
-    // If different card numbers map to the same row, it's a matching conflict —
-    // keep both visible and clear the secondary's match so it shows as unmatched.
-    const rowPrimary = {}; // rowNum → index of primary entry
-
-    function cardNumKey(n) {
-      return (n || 'unknown').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
-    }
-
-    identifiedCards.forEach((card, idx) => {
-      if (!card.match) return;
-      const rn = card.match.rowNum;
-      if (rowPrimary[rn] === undefined) {
-        rowPrimary[rn] = idx;
-      } else {
-        const primaryIdx = rowPrimary[rn];
-        const primary = identifiedCards[primaryIdx];
-
-        // Only auto-merge if card numbers are the same (true duplicate stack)
-        const pNum = cardNumKey(primary.cardNumber);
-        const cNum = cardNumKey(card.cardNumber);
-        const sameCard = pNum === cNum || pNum === 'unknown' || cNum === 'unknown' || pNum === '?' || cNum === '?';
-
-        if (sameCard) {
-          // True stack — merge note contribution into primary
-          if (card.parallel || card.serial || (card.count || 1) > 1) {
-            const mergedCard = { ...card, match: primary.match };
-            const tempMatch = { ...primary.match, data: [...primary.match.data] };
-            tempMatch.data[COL.NOTE] = primary.note;
-            tempMatch.data[COL.IN_COLL] = 'x';
-            primary.note = buildDefaultNote(mergedCard, tempMatch);
-          } else {
-            const tempMatch = { ...primary.match, data: [...primary.match.data] };
+ØY
+HOÂY
+XØX]Ú
+H]ÂÛÛÝHØX]ÚÝÓ[NÂY
+ÝÔ[XVÜHOOH[Y[Y
+HÂÝÔ[XVÜHHYÂH[ÙHÂÛÛÝ[XRYHÝÔ[XVÜNÂÛÛÝ[XHHY[YYYØÖÜ[XRYNÂËÈÛH]]Ë[YÙHYØ[XÈHHØ[YH
+YHXØ]HÝXÚÊBÛÛÝ[HHØ[RÙ^J[XKØ[XNÂÛÛÝÓ[HHØ[RÙ^JØØ[XNÂÛÛÝØ[YPØH[HOOHÓ[H[HOOH	Ý[ÛÝÛÈÓ[HOOH	Ý[ÛÝÛÈ[HOOH	ÏÉÈÓ[HOOH	ÏÉÎÂY
+Ø[YPØ
+HÂËÈYHÝXÚÈ8 %XÚYHÚXÚÈ[ÜH]Z[ÈH[XBY
+Ø[[ØÙX[
+ØÛÝ[JHJHÂÛÛÝYÙYØHÈØX]Ú[XKX]ÚNÂÛÛÝ[X]ÚHÈ[XKX]Ú]NË[XKX]Ú]WHNÂ[X]Ú]VÐÓÓÕWHH[XKÝNÂ[X]Ú]VÐÓÓSÐÓÓHH	Þ	ÎÂ[XKÝHHZ[Y][ÝJYÙYØ[X]Ú
+NÂH[ÙHÂÛÛÝ[X]ÚHÈ[XKX]Ú]NË[XKX]ch.data] };
             tempMatch.data[COL.NOTE] = primary.note;
             tempMatch.data[COL.IN_COLL] = 'x';
             const baseCard = { cardNumber: card.cardNumber, count: card.count || 1, parallel: null, serial: null };
@@ -1403,7 +1336,7 @@ CRITICAL RULES:
           card.mergedInto = primaryIdx;
           card.skipped = true;
         } else {
-          // Different card numbers → different cards that both matched the same row.
+          // Different card numbers â different cards that both matched the same row.
           // This is a matching error. Clear the secondary's match so it shows as
           // "not found" with the add-to-sheet form, rather than silently merging.
           card.match = null;
@@ -1423,19 +1356,19 @@ CRITICAL RULES:
   }
 }
 
-// ─── NOTE LOGIC ───────────────────────────────────────────────────────────────
+// âââ NOTE LOGIC âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 // Rarity score: lower = rarer = appears first in note string.
 // Serialized cards sort by denominator (e.g. /1 < /10 < /50).
-// Non-serialized parallels go after serialized. Base copies (x2, x3…) go last.
+// Non-serialized parallels go after serialized. Base copies (x2, x3â¦) go last.
 function rarityScore(entry) {
   entry = (entry || '').trim();
-  // Base counts (x2, x10, Regular x13) → always last
+  // Base counts (x2, x10, Regular x13) â always last
   if (/^x\d+$/i.test(entry) || /^regular\s+x\d+$/i.test(entry)) return 10000000;
-  // Has a serial fraction "xxx/yyy" → sort by denominator ascending
+  // Has a serial fraction "xxx/yyy" â sort by denominator ascending
   const serialMatch = entry.match(/\/(\d+)/);
   if (serialMatch) return parseInt(serialMatch[1]);
-  // Non-serialized parallel → after serialized, before base
+  // Non-serialized parallel â after serialized, before base
   return 1000000;
 }
 
@@ -1472,12 +1405,12 @@ function buildDefaultNote(card, match) {
   const thisEntry = parts.join(' ');
 
   if (!alreadyHave) {
-    // Brand new card — first time logging it
+    // Brand new card â first time logging it
     if (!thisEntry) return count > 1 ? `x${count}` : '';
     return count > 1 ? `x${count} ${thisEntry}` : thisEntry;
   }
 
-  // Already have — accumulate into existing note
+  // Already have â accumulate into existing note
   let entries = parseNoteEntries(existingNote);
 
   if (!thisEntry) {
@@ -1488,7 +1421,7 @@ function buildDefaultNote(card, match) {
       const n = extractBaseCount(entries[baseIdx]);
       entries[baseIdx] = makeBaseCountEntry(n + count);
     } else {
-      // First time noting duplicates — existing unmarked copy counts as 1
+      // First time noting duplicates â existing unmarked copy counts as 1
       entries.push(`x${1 + count}`);
     }
   } else {
@@ -1498,7 +1431,7 @@ function buildDefaultNote(card, match) {
       : -1;
 
     if (existingIdx >= 0) {
-      // Same parallel already noted — increment its count
+      // Same parallel already noted â increment its count
       const existing = entries[existingIdx];
       const xMatch = existing.match(/^x(\d+)\s+/i);
       const prevCount = xMatch ? parseInt(xMatch[1]) : 1;
@@ -1514,8 +1447,8 @@ function buildDefaultNote(card, match) {
   }
 
   // Apply Seth's convention:
-  // - parallels present → base count uses "Regular x\d+" prefix
-  // - base only → bare "x\d+" with no prefix
+  // - parallels present â base count uses "Regular x\d+" prefix
+  // - base only â bare "x\d+" with no prefix
   const hasParallels = entries.some(e => !isBaseCount(e));
   entries = entries.map(e => {
     if (!isBaseCount(e)) return e;
@@ -1537,7 +1470,7 @@ function renderResults() {
   const highConf = visible.filter(c => c.match && !c.skipped && !c.lowConfidence).length;
   const lowConfCount = visible.filter(c => c.match && !c.skipped && c.lowConfidence && !c.manuallyIncluded).length;
   const badge = document.getElementById('results-badge');
-  badge.textContent = `${matched}/${total} matched${lowConfCount > 0 ? ` · ${lowConfCount} flagged` : ''}`;
+  badge.textContent = `${matched}/${total} matched${lowConfCount > 0 ? ` Â· ${lowConfCount} flagged` : ''}`;
   badge.className = `badge ${matched > 0 ? 'green' : 'red'}`;
 
   // Write button counts only high-confidence + manually-included
@@ -1546,11 +1479,11 @@ function renderResults() {
   const writeBtn = document.getElementById('write-btn');
   if (writeBtn) {
     if (writeCount === 0 && flaggedCount > 0) {
-      writeBtn.textContent = `⚠️ ${flaggedCount} card${flaggedCount !== 1 ? 's' : ''} flagged — edit notes or tap "Include anyway"`;
+      writeBtn.textContent = `â ï¸ ${flaggedCount} card${flaggedCount !== 1 ? 's' : ''} flagged â edit notes or tap "Include anyway"`;
       writeBtn.style.background = 'var(--bg3)';
       writeBtn.style.color = 'var(--yellow)';
     } else {
-      writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
+      writeBtn.textContent = `â Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
       writeBtn.style.background = '';
       writeBtn.style.color = '';
     }
@@ -1568,16 +1501,16 @@ function renderResults() {
     const byName = card.matchMethod === 'name';
 
     const parallelTag = card.parallel
-      ? `<span class="tag">⚡ ${card.parallel}${card.serial ? ' · ' + card.serial : ''}</span>`
-      : (card.serial ? `<span class="tag">🔢 ${card.serial}</span>` : '');
+      ? `<span class="tag">â¡ ${card.parallel}${card.serial ? ' Â· ' + card.serial : ''}</span>`
+      : (card.serial ? `<span class="tag">ð¢ ${card.serial}</span>` : '');
     const countBadge = count > 1
-      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);">×${count}</span>`
+      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);">Ã${count}</span>`
       : '';
     const nameMatchBadge = byName
       ? `<span class="tag" style="background:rgba(59,130,246,0.15);color:var(--blue);font-size:10px;">matched by name</span>`
       : '';
     const multiWarnBadge = card.multipleRowsExist && byName
-      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);font-size:10px;">⚠ multiple rows</span>`
+      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);font-size:10px;">â  multiple rows</span>`
       : '';
 
     if (!hasMatch) {
@@ -1589,12 +1522,12 @@ function renderResults() {
         <div class="card-result-header">
           <div class="card-num">#${card.cardNumber || '?'}</div>
           <div class="card-info">
-            <div class="player">${card.playerName || '—'} ${countBadge}</div>
+            <div class="player">${card.playerName || 'â'} ${countBadge}</div>
             <div class="meta">${card.teamName || ''} ${parallelTag}</div>
           </div>
-          <div class="card-status">❓</div>
+          <div class="card-status">â</div>
         </div>
-        <div class="card-nomatch">${card.rowConflict ? '⚠️ Different card, same player — another card already matched this player\'s row. Different card number = different row. Edit & add, or skip.' : 'Not in sheet — edit details &amp; add, or skip'}</div>
+        <div class="card-nomatch">${card.rowConflict ? 'â ï¸ Different card, same player â another card already matched this player\'s row. Different card number = different row. Edit & add, or skip.' : 'Not in sheet â edit details &amp; add, or skip'}</div>
         <div class="add-card-form" id="add-form-${idx}">
           <div class="add-form-grid">
             <div>
@@ -1631,7 +1564,7 @@ function renderResults() {
             <input class="add-form-input" type="text" id="add-note-${idx}" value="${escHtml(defaultNote)}" placeholder="Optional">
           </div>
           <div class="add-form-actions">
-            <button class="act-btn confirm" id="add-btn-${idx}" onclick="addNewCard(${idx})">➕ Add to Sheet</button>
+            <button class="act-btn confirm" id="add-btn-${idx}" onclick="addNewCard(${idx})">â Add to Sheet</button>
             <button class="act-btn skip" onclick="skipCard(${idx})">Skip</button>
           </div>
         </div>
@@ -1639,30 +1572,30 @@ function renderResults() {
     }
 
     const isNew = !alreadyHave;
-    const statusIcon = isNew ? '🆕' : '📦';
+    const statusIcon = isNew ? 'ð' : 'ð¦';
     const noteLabel = isNew
       ? 'Note (leave blank for base card):'
-      : `Was: "${existingNote || 'blank'}" → Will become:`;
+      : `Was: "${existingNote || 'blank'}" â Will become:`;
 
     // Variation/SP warning: show if set has known variations and this card has no detected parallel
     const knownVars = [...(window._setInfo?.variations||[]), ...(window._setInfo?.short_prints||[])];
     const variationWarn = knownVars.length > 0 && !card.parallel
       ? `<div class="card-variation-warn">
-          <span>⚠️ Variations exist: ${knownVars.map(v => v.name).join(', ')}</span>
-          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Close-up</button>
+          <span>â ï¸ Variations exist: ${knownVars.map(v => v.name).join(', ')}</span>
+          <button class="closeup-btn" onclick="takeCloseup(${idx})">ð· Close-up</button>
         </div>`
       : '';
 
     // Holder banner takes priority; otherwise show generic low-conf banner
     const holderBanner = card.inHolder
       ? `<div class="low-conf-banner">
-          <span>🛡️ Card is in a sleeve/holder — harder to read accurately</span>
-          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retake outside holder</button>
+          <span>ð¡ï¸ Card is in a sleeve/holder â harder to read accurately</span>
+          <button class="closeup-btn" onclick="takeCloseup(${idx})">ð· Retake outside holder</button>
         </div>`
       : '';
     const confBanner = (!card.inHolder && card.lowConfidence)
       ? `<div class="low-conf-banner">
-          <span>⚠️ ${card.confidenceLevel === 'medium' ? 'Medium' : 'Low'} confidence — verify before writing</span>
+          <span>â ï¸ ${card.confidenceLevel === 'medium' ? 'Medium' : 'Low'} confidence â verify before writing</span>
           <button class="include-btn" id="inc-btn-${idx}" onclick="includeCard(${idx})">Include anyway</button>
         </div>`
       : '';
@@ -1679,8 +1612,8 @@ function renderResults() {
       </div>
       <div class="${isNew ? 'card-match' : 'already-have'}">
         ${isNew
-          ? `✓ Row ${card.match.rowNum} — new card${byName ? ' (verify row is correct)' : ''}`
-          : `📦 Row ${card.match.rowNum} — duplicate${existingNote ? ' · current: ' + existingNote : ''}${byName ? ' · verify row' : ''}`}
+          ? `â Row ${card.match.rowNum} â new card${byName ? ' (verify row is correct)' : ''}`
+          : `ð¦ Row ${card.match.rowNum} â duplicate${existingNote ? ' Â· current: ' + existingNote : ''}${byName ? ' Â· verify row' : ''}`}
       </div>
       ${holderBanner}
       ${confBanner}
@@ -1688,7 +1621,7 @@ function renderResults() {
       <div class="count-row">
         <span class="count-label">Copies in this scan:</span>
         <div class="count-controls">
-          <button class="adj-btn" onclick="adjustCount(${idx}, -1)">−</button>
+          <button class="adj-btn" onclick="adjustCount(${idx}, -1)">â</button>
           <span id="count-display-${idx}" class="count-val">${count}</span>
           <button class="adj-btn" onclick="adjustCount(${idx}, 1)">+</button>
         </div>
@@ -1697,13 +1630,14 @@ function renderResults() {
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">${noteLabel}</div>
         <div style="display:flex;gap:6px;align-items:flex-start;">
           <textarea class="note-input" id="note-${idx}" placeholder="e.g. Gold Refractor 23/50" style="flex:1;" oninput="onNoteEdited(${idx})">${escHtml(card.note || '')}</textarea>
-          <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="flex-shrink:0;padding:8px 10px;font-size:12px;">Skip</button></div>
+          <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="flex-shrink:0;padding:8px 10px;font-size:12px;">Skip</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
 
-// Auto-include a card the moment the user manually edits its note —
+// Auto-include a card the moment the user manually edits its note â
 // they clearly want it written, regardless of confidence level.
 function onNoteEdited(idx) {
   if (!identifiedCards[idx]) return;
@@ -1737,7 +1671,7 @@ async function relookupSetInfo() {
   const label = document.getElementById('scan-set-label');
   const btn = document.getElementById('relookup-btn');
   if (btn) btn.style.opacity = '0.3';
-  label.textContent = '🌐 Re-fetching set info…';
+  label.textContent = 'ð Re-fetching set infoâ¦';
   await loadSetInfo(sheetName);
   updateSetLabel(sheetName, label);
   if (btn) btn.style.opacity = '0.7';
@@ -1757,21 +1691,21 @@ function updateSetLabel(sheetName, labelEl) {
     const parts = [];
     if (parallelCount > 0) parts.push(`${parallelCount} parallel${parallelCount !== 1 ? 's' : ''}`);
     if (varCount > 0) parts.push(`${varCount} variation${varCount !== 1 ? 's' : ''}`);
-    pill = `<span class="set-info-pill">${isWeb ? '🌐' : '🧠'} ${parts.join(' · ')}</span>`;
+    pill = `<span class="set-info-pill">${isWeb ? 'ð' : 'ð§ '} ${parts.join(' Â· ')}</span>`;
   }
-  el.innerHTML = `📊 ${sheetName}${pill}`;
+  el.innerHTML = `ð ${sheetName}${pill}`;
 }
 
 function includeCard(idx) {
   identifiedCards[idx].manuallyIncluded = true;
   const btn = document.getElementById(`inc-btn-${idx}`);
-  if (btn) { btn.textContent = '✓ Included'; btn.classList.add('included'); btn.onclick = null; }
+  if (btn) { btn.textContent = 'â Included'; btn.classList.add('included'); btn.onclick = null; }
   const el = document.getElementById(`card-${idx}`);
   if (el) el.classList.remove('low-conf');
   // Update write button count
   const writeCount = identifiedCards.filter(c => c.match && !c.skipped && c.mergedInto === undefined && (!c.lowConfidence || c.manuallyIncluded)).length;
   const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
+  if (writeBtn) writeBtn.textContent = `â Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
 }
 
 function skipCard(idx) {
@@ -1779,21 +1713,21 @@ function skipCard(idx) {
   const el = document.getElementById(`card-${idx}`);
   el.classList.add('rejected');
   const skipBtn = document.getElementById(`skip-btn-${idx}`);
-  if (skipBtn) { skipBtn.textContent = '✓ Skipped'; skipBtn.disabled = true; skipBtn.onclick = null; }
+  if (skipBtn) { skipBtn.textContent = 'â Skipped'; skipBtn.disabled = true; skipBtn.onclick = null; }
   const noteInput = document.getElementById(`note-${idx}`);
   if (noteInput) noteInput.disabled = true;
   // Update write button count
   const remaining = identifiedCards.filter(c => c.match && !c.skipped).length;
   const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) writeBtn.textContent = `✓ Write ${remaining} Card${remaining !== 1 ? 's' : ''} to Sheet`;
+  if (writeBtn) writeBtn.textContent = `â Write ${remaining} Card${remaining !== 1 ? 's' : ''} to Sheet`;
 }
 
 async function writeChanges() {
   const toWrite = identifiedCards.filter(c => c.match && !c.skipped && !c.confirmed && (!c.lowConfidence || c.manuallyIncluded));
-  if (!toWrite.length) { showToast('Nothing to write — flagged cards need "Include anyway" first', ''); return; }
+  if (!toWrite.length) { showToast('Nothing to write â flagged cards need "Include anyway" first', ''); return; }
 
   const btn = document.getElementById('write-btn');
-  btn.textContent = 'Writing…';
+  btn.textContent = 'Writingâ¦';
   btn.disabled = true;
 
   let successCount = 0;
@@ -1834,7 +1768,7 @@ async function writeChanges() {
 
 function showSuccess() {
   const total = identifiedCards.filter(c => c.confirmed).length;
-  document.getElementById('success-title').textContent = `${total} Card${total !== 1 ? 's' : ''} Logged! 🎉`;
+  document.getElementById('success-title').textContent = `${total} Card${total !== 1 ? 's' : ''} Logged! ð`;
   const setName = document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || 'your set';
   document.getElementById('success-msg').textContent = `Written to ${setName}`;
   goScanStep(5);
@@ -1862,11 +1796,11 @@ function goScanStep(n) {
   document.getElementById(`scan-step-${n}`)?.classList.add('active');
 }
 
-// ─── ADD NEW CARD ─────────────────────────────────────────────────────────────
+// âââ ADD NEW CARD âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function addNewCard(idx) {
   const card = identifiedCards[idx];
   const btn = document.getElementById(`add-btn-${idx}`);
-  if (btn) { btn.textContent = 'Adding…'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Addingâ¦'; btn.disabled = true; }
 
   const playerName = document.getElementById(`add-player-${idx}`)?.value.trim() || '';
   const cardNum    = document.getElementById(`add-num-${idx}`)?.value.trim() || '';
@@ -1877,7 +1811,7 @@ async function addNewCard(idx) {
   const note       = document.getElementById(`add-note-${idx}`)?.value.trim() || '';
   const ctx        = getSetContext();
 
-  if (!playerName) { showToast('Player name required', 'error'); if (btn) { btn.textContent = '➕ Add to Sheet'; btn.disabled = false; } return; }
+  if (!playerName) { showToast('Player name required', 'error'); if (btn) { btn.textContent = 'â Add to Sheet'; btn.disabled = false; } return; }
 
   try {
     // Find next empty row in Master (append after last occupied row)
@@ -1924,20 +1858,20 @@ async function addNewCard(idx) {
           <div class="card-num">#${escHtml(cardNum || '?')}</div>
           <div class="card-info">
             <div class="player">${escHtml(playerName)}</div>
-            <div class="meta">${escHtml(team)}${note ? ' · ' + escHtml(note) : ''}</div>
+            <div class="meta">${escHtml(team)}${note ? ' Â· ' + escHtml(note) : ''}</div>
           </div>
-          <div class="card-status">✅</div>
+          <div class="card-status">â</div>
         </div>
-        <div class="card-match">➕ Added as new row ${nextRow} in Master</div>`;
+        <div class="card-match">â Added as new row ${nextRow} in Master</div>`;
     }
     showToast(`${playerName} added to sheet!`, 'success');
   } catch(e) {
-    if (btn) { btn.textContent = '➕ Add to Sheet'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'â Add to Sheet'; btn.disabled = false; }
     showToast('Failed to add: ' + e.message, 'error');
   }
 }
 
-// ─── CLOSE-UP WORKFLOW ────────────────────────────────────────────────────────
+// âââ CLOSE-UP WORKFLOW ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let _closeupCardIdx = null;
 
 function takeCloseup(idx) {
@@ -1955,7 +1889,7 @@ async function onCloseupSelected(evt) {
 
   const el = document.getElementById(`card-${idx}`);
   const warnEl = el?.querySelector('.card-variation-warn');
-  if (warnEl) warnEl.innerHTML = '<span>🔍 Analyzing close-up…</span>';
+  if (warnEl) warnEl.innerHTML = '<span>ð Analyzing close-upâ¦</span>';
 
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -1964,7 +1898,7 @@ async function onCloseupSelected(evt) {
       const base64 = compressed.split(',')[1];
       const varList = [...(window._setInfo?.variations||[]), ...(window._setInfo?.short_prints||[])];
       const varContext = varList.length
-        ? `Known variations for this set:\n${varList.map(v => `  • ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`).join('\n')}`
+        ? `Known variations for this set:\n${varList.map(v => `  â¢ ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`).join('\n')}`
         : 'Look for any reference codes or variation indicators.';
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1988,7 +1922,7 @@ ${varContext}
 
 Look carefully at this card image and tell me:
 1. Is this a base card or a variation/SP?
-2. Can you see any reference codes (like V1, V2, SP, SSP, etc.) — if so, where and what do they say?
+2. Can you see any reference codes (like V1, V2, SP, SSP, etc.) â if so, where and what do they say?
 3. Any other identifying features (photo, uniform, design differences)?
 
 Return ONLY valid JSON:
@@ -2007,9 +1941,9 @@ Return ONLY valid JSON:
       // Update the variation warning area with findings
       if (warnEl) {
         const verdictColor = analysis.verdict === 'base' ? 'var(--green)' : 'var(--yellow)';
-        const icon = analysis.verdict === 'base' ? '✅' : analysis.verdict === 'variation' ? '⚠️' : analysis.verdict === 'sp' ? '🔥' : '❓';
+        const icon = analysis.verdict === 'base' ? 'â' : analysis.verdict === 'variation' ? 'â ï¸' : analysis.verdict === 'sp' ? 'ð¥' : 'â';
         warnEl.style.color = verdictColor;
-        warnEl.innerHTML = `<span>${icon} Close-up: ${analysis.verdict.toUpperCase()}${analysis.code ? ' [' + analysis.code + ']' : ''} — ${analysis.description}</span>`;
+        warnEl.innerHTML = `<span>${icon} Close-up: ${analysis.verdict.toUpperCase()}${analysis.code ? ' [' + analysis.code + ']' : ''} â ${analysis.description}</span>`;
         // If a parallel was detected, update the note
         if (analysis.parallel && analysis.verdict !== 'base') {
           const noteInput = document.getElementById(`note-${idx}`);
@@ -2020,13 +1954,13 @@ Return ONLY valid JSON:
         }
       }
     } catch(e) {
-      if (warnEl) warnEl.innerHTML = `<span>⚠️ Close-up failed: ${e.message}</span><button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retry</button>`;
+      if (warnEl) warnEl.innerHTML = `<span>â ï¸ Close-up failed: ${e.message}</span><button class="closeup-btn" onclick="takeCloseup(${idx})">ð· Retry</button>`;
     }
   };
   reader.readAsDataURL(file);
 }
 
-// ─── NEW SET ──────────────────────────────────────────────────────────────────
+// âââ NEW SET ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function onXlsxSelected(evt) {
   const file = evt.target.files[0];
   if (!file) return;
@@ -2041,7 +1975,7 @@ function onXlsxSelected(evt) {
       const hasMaster = wb.SheetNames.includes('Master');
       xlsxWorkbook = { sheets, sheetNames: wb.SheetNames, hasMaster };
 
-      // Parse filename → Year / Brand / Series
+      // Parse filename â Year / Brand / Series
       const name = file.name.replace(/\.(xlsx?)$/i,'');
       const parts = name.replace(/-/g,' ').split(/\s+/);
       const yearMatch = parts.find(p => /^20\d{2}$/.test(p));
@@ -2054,7 +1988,7 @@ function onXlsxSelected(evt) {
       document.getElementById('newset-form').style.display = 'block';
       document.getElementById('newset-result').style.display = 'none';
       document.querySelector('.upload-area').style.display = 'none';
-      showToast(`Loaded ${hasMaster ? 'older' : 'newer'} Beckett format — ${wb.SheetNames.join(', ')}`);
+      showToast(`Loaded ${hasMaster ? 'older' : 'newer'} Beckett format â ${wb.SheetNames.join(', ')}`);
     } catch(err) {
       showToast('Could not read XLSX: ' + err.message, 'error');
     }
@@ -2064,7 +1998,7 @@ function onXlsxSelected(evt) {
 
 // Build Card Caddy rows from older Beckett format (has Master tab)
 // Master columns: [Type, Number, Player, Team, RC-flag, ...]
-function _buildRowsOlderFormat(sheets, year, brand, series) {
+function _buildRowsOlderFormat(sheets, yar, brand, series) {
   const rows = sheets['Master'] || [];
   const out = [];
   for (const row of rows) {
@@ -2078,8 +2012,9 @@ function _buildRowsOlderFormat(sheets, year, brand, series) {
     const isCard = numStr !== '' && !isNaN(numStr.replace(/[^0-9]/g,'')) && player.length > 1;
 
     if (isCard) {
-      const cardType = rcFlag === 'RC' ? 'RC' : (type || 'Base');
-      out.push(['', year, brand, series, cardType, numStr, player, team, '', '', '', '']);
+      const cardType = type || 'Base';
+      const cardInfo = rcFlag === 'RC' ? 'RC' : '';
+      out.push(['', year, brand, series, cardType, numStr, player, team, cardInfo, '', '', '']);
     } else {
       // Preserve preamble/info row as-is in card columns, blanks in CC columns
       const hasContent = row.some(c => c != null && String(c).trim().length > 0);
@@ -2093,7 +2028,7 @@ function _buildRowsOlderFormat(sheets, year, brand, series) {
   return out;
 }
 
-// Build Card Caddy rows from newer Beckett format (no Master tab, separate tabs per type)
+// Build Card Caddy rows from newer Beckett format (No Master tab, separate tabs per type)
 // Newer row format: [Number, Player, Team, RC-flag?] with preamble at top
 function _buildRowsNewerFormat(sheets, sheetNames, year, brand, series) {
   const TYPE_MAP = {
@@ -2144,8 +2079,9 @@ function _buildRowsNewerFormat(sheets, sheetNames, year, brand, series) {
 
       const isCard = numStr !== '' && !isNaN(parseInt(numStr)) && player.length > 1;
       if (isCard) {
-        const cardType = rcFlag === 'RC' ? 'RC' : inferredType;
-        out.push(['', year, brand, series, cardType, numStr, player, team, '', '', '', '']);
+        const cardType = inferredType;
+        const cardInfo = rcFlag === 'RC' ? 'RC' : '';
+        out.push(['', year, brand, series, cardType, numStr, player, team, cardInfo, '', '', '']);
       } else {
         const hasContent = r.some(c => c != null && String(c).trim().length > 0);
         if (hasContent) {
@@ -2158,7 +2094,7 @@ function _buildRowsNewerFormat(sheets, sheetNames, year, brand, series) {
   return out;
 }
 
-['ns-year','ns-brand','ns-series'].forEach(id => {
+['ns-year','bs-brand','ns-series'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', updateSheetName);
 });
 
@@ -2180,7 +2116,7 @@ async function createNewSet() {
   if (!title) { showToast('Sheet name required', 'error'); return; }
 
   const btn = document.querySelector('#newset-screen .btn-primary');
-  btn.textContent = 'Creating…';
+  btn.textContent = 'Creatingâ¦';
   btn.disabled = true;
 
   try {
@@ -2194,7 +2130,7 @@ async function createNewSet() {
     const cardCount = dataRows.filter(r => r[1] === year && r[5] !== '').length;
     const allRows = [headers, ...dataRows];
 
-    // ── Step 1: Create spreadsheet ──
+    // ââ Step 1: Create spreadsheet ââ
     const createResp = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2208,20 +2144,20 @@ async function createNewSet() {
     newSheetId = created.spreadsheetId;
     const masterSheetId = created.sheets[0].properties.sheetId;
 
-    // ── Step 2: Write data ──
+    // ââ Step 2: Write data ââ
     const writeResp = await gFetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}/values/Master!A1?valueInputOption=USER_ENTERED`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}/values/Master!A1?valueInputOption=USE_ENTERED`,
       { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ values: allRows }) }
     );
     if (!writeResp.ok) throw new Error(`Write failed: ${writeResp.status}`);
 
-    // ── Step 3: Format (freeze, header style, autofilter, conditional format, column widths) ──
+    // ââ Step 3: Format (freeze, header style, autofilter, conditional format, column widths) ââ
     await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}:batchUpdate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: [
         // Freeze row 1
-        { updateSheetProperties: {
+        { updateSheetProperties: { 
             properties: { sheetId: masterSheetId, gridProperties: { frozenRowCount: 1 } },
             fields: 'gridProperties.frozenRowCount'
         }},
@@ -2248,7 +2184,8 @@ async function createNewSet() {
             }
         }}},
         // Column widths: A=90, B=55, C=65, D=110, E=80, F=70, G=180, H=160, I=140, J=80, K=100, L=160
-        ...[90,55,65,110,80,70,180,160,140,80,100,160].map((px, i) => ({     updateDimensionProperties: {
+        ...[90,55,65,110,80,70,180,160,140,80,100,160].map((px, i) => ({
+          updateDimensionProperties: {
             range: { sheetId: masterSheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i+1 },
             properties: { pixelSize: px }, fields: 'pixelSize'
           }
@@ -2256,7 +2193,41 @@ async function createNewSet() {
       ]})
     });
 
-    // ── Step 4: Move to Drive folder ──
+    // ââ Step 4: Copy original Beckett tabs as reference sheets ââ
+    const originalTabNames = xlsxWorkbook.sheetNames;
+    if (originalTabNames.length > 0) {
+      btn.textContent = 'Adding reference tabsâ¦';
+      // Add all original tabs in one batchUpdate
+      const addSheetRequests = originalTabNames.map((tabName, idx) => ({
+        addSheet: { properties: { title: tabName, index: idx + 1 } }
+      }));
+      const addResp = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: addSheetRequests })
+      });
+      if (addResp.ok) {
+        // Write raw Beckett data to each tab
+        const writeRequests = originalTabNames.map(tabName => {
+          const rawRows = xlsxWorkbook.sheets[tabName] || [];
+          // Convert to string values for Sheets API (null â '')
+          const values = rawRows.map(row =>
+            (row || []).map(cell => cell != null ? String(cell) : '')
+          );
+          return {
+            range: `'${tabName}'!A1`,
+            values: values.length ? values : [['']]
+          };
+        });
+        await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}/values:batchUpdate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'RAW', data: writeRequests })
+        });
+      }
+    }
+
+    // ââ Step 5: Move to Drive folder ââ
     if (DRIVE_FOLDER_ID) {
       await gFetch(`https://www.googleapis.com/drive/v3/files/${newSheetId}?addParents=${DRIVE_FOLDER_ID}&removeParents=root&fields=id`, {
         method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
@@ -2268,13 +2239,13 @@ async function createNewSet() {
     document.getElementById('ns-sheet-url').textContent = `https://docs.google.com/spreadsheets/d/${newSheetId}/edit`;
     document.getElementById('newset-form').style.display = 'none';
     document.getElementById('newset-result').style.display = 'block';
-    showToast(`✓ Created with ${cardCount} cards!`, 'success');
+    showToast(`â Created with ${cardCount} cards!`, 'success');
     await loadSheetsList();
 
   } catch(e) {
     showToast('Failed: ' + e.message, 'error');
   }
-  btn.textContent = 'Create Google Sheet →';
+  btn.textContent = 'Create Google Sheet â';
   btn.disabled = false;
 }
 
@@ -2291,7 +2262,7 @@ function resetNewSet() {
   document.querySelector('.upload-area').style.display = 'block';
 }
 
-// ─── SET INFO REVIEW ──────────────────────────────────────────────────────────
+// âââ SET INFO REVIEW ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function showSetInfoReview(setName) {
   if (setName) currentSheetName = setName;
   renderSetInfoReview();
@@ -2307,10 +2278,10 @@ function renderSetInfoReview() {
 
   // Source badge
   if (si) {
-    const proxyLabel = si._proxy ? ` · ${si._proxy}` : '';
+    const proxyLabel = si._proxy ? ` Â· ${si._proxy}` : '';
     const srcBadge = isWeb
-      ? `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.12);color:var(--green);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🌐 Fetched from web${proxyLabel}</div>`
-      : `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.12);color:var(--yellow);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🧠 From Claude memory — may be inaccurate</div>`;
+      ? `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.12);color:var(--green);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">ð Fetched from web${proxyLabel}</div>`
+      : `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.12);color:var(--yellow);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">ð§  From Claude memory â may be inaccurate</div>`;
     html += srcBadge;
   }
 
@@ -2319,8 +2290,8 @@ function renderSetInfoReview() {
   if (si?.parallels?.length) {
     si.parallels.forEach(p => {
       const pr = p.print_run ? `<span style="color:var(--text2);font-size:12px;"> ${escHtml(p.print_run)}</span>` : '';
-      const note = p.notes ? `<span style="color:var(--text2);font-size:12px;"> · ${escHtml(p.notes)}</span>` : (p.visual ? `<span style="color:var(--text2);font-size:12px;"> · ${escHtml(p.visual)}</span>` : '');
-      html += `<div class="review-item">• <strong>${escHtml(p.name)}</strong>${pr}${note}</div>`;
+      const note = p.notes ? `<span style="color:var(--text2);font-size:12px;"> Â· ${escHtml(p.notes)}</span>` : (p.visual ? `<span style="color:var(--text2);font-size:12px;"> Â· ${escHtml(p.visual)}</span>` : '');
+      html += `<div class="review-item">â¢ <strong>${escHtml(p.name)}</strong>${pr}${note}</div>`;
     });
   } else {
     html += `<div class="review-empty">None found</div>`;
@@ -2333,7 +2304,7 @@ function renderSetInfoReview() {
   if (allVars.length) {
     allVars.forEach(v => {
       const code = v.back_code ? `<span style="color:var(--text2);font-size:12px;"> [${escHtml(v.back_code)}]</span>` : '';
-      html += `<div class="review-item">• <strong>${escHtml(v.name)}</strong>${code} — <span style="color:var(--text2);font-size:12px;">${escHtml(v.how_to_spot)}</span></div>`;
+      html += `<div class="review-item">â¢ <strong>${escHtml(v.name)}</strong>${code} â <span style="color:var(--text2);font-size:12px;">${escHtml(v.how_to_spot)}</span></div>`;
     });
   } else {
     html += `<div class="review-empty">None found</div>`;
@@ -2349,21 +2320,21 @@ function renderSetInfoReview() {
   if (corrections.length) {
     html += `<div class="review-section"><div class="review-section-title">Your Lessons (${corrections.length})</div>`;
     corrections.forEach(c => {
-      html += `<div class="review-item lesson-item">💡 ${escHtml(c.lesson)}</div>`;
+      html += `<div class="review-item lesson-item">ð¡ ${escHtml(c.lesson)}</div>`;
     });
     html += `<div style="padding-bottom:6px;"></div></div>`;
   }
 
   // Re-fetch + debug buttons
-  html += `<button class="dig-btn" onclick="refetchSetInfo()" style="border-top:none;color:var(--text2);margin-top:4px;">🔄 Re-fetch from web (bust cache)</button>`;
+  html += `<button class="dig-btn" onclick="refetchSetInfo()" style="border-top:none;color:var(--text2);margin-top:4px;">ð Re-fetch from web (bust cache)</button>`;
 
   // Debug log toggle
   const dbgLog = window._fetchDebugLog;
   if (dbgLog && dbgLog.length) {
     html += `<details style="margin-top:8px;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;">
-      <summary style="cursor:pointer;color:var(--text2);font-weight:600;list-style:none;">🔍 Fetch debug log (${dbgLog.length} events)</summary>
+      <summary style="cursor:pointer;color:var(--text2);font-weight:600;list-style:none;">ð Fetch debug log (${dbgLog.length} events)</summary>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
-        ${dbgLog.map(l => `<div style="color:${l.startsWith('⚠')?'var(--yellow)':'var(--text2)'};font-family:monospace;word-break:break-all;">${escHtml(l)}</div>`).join('')}
+        ${dbgLog.map(l => `<div style="color:${l.startsWith('â ')?'var(--yellow)':'var(--text2)'};font-family:monospace;word-break:break-all;">${escHtml(l)}</div>`).join('')}
       </div>
     </details>`;
   }
@@ -2372,8 +2343,8 @@ function renderSetInfoReview() {
   const pCount = si?.parallels?.length || 0;
   const vCount = allVars.length;
   let sub = setName;
-  if (pCount || vCount) sub += ` — ${[pCount ? pCount+' parallel'+(pCount!==1?'s':'') : '', vCount ? vCount+' variation'+(vCount!==1?'s':'') : ''].filter(Boolean).join(', ')}`;
-  else sub += ' — no data found';
+  if (pCount || vCount) sub += ` â ${[pCount ? pCount+' parallel'+(pCount!==1?'s':'') : '', vCount ? vCount+' variation'+(vCount!==1?'s':'') : ''].filter(Boolean).join(', ')}`;
+  else sub += ' â no data found';
   document.getElementById('set-review-sub').textContent = sub;
 }
 
@@ -2383,12 +2354,12 @@ async function refetchSetInfo() {
   localStorage.removeItem(cacheKey);
   window._setInfo = null;
   window._fetchDebugLog = [];
-  document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>Re-fetching…</div>`;
+  document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>Re-fetchingâ¦</div>`;
   await loadSetInfo(setName);
   renderSetInfoReview();
   const src = window._setInfo?._source;
   const proxy = window._setInfo?._proxy ? ` (via ${window._setInfo._proxy})` : '';
-  showToast(src === 'web' ? `✓ Updated from web${proxy}` : 'Web fetch failed — check debug log', src === 'web' ? 'success' : '');
+  showToast(src === 'web' ? `â Updated from web${proxy}` : 'Web fetch failed â check debug log', src === 'web' ? 'success' : '');
 }
 
 
@@ -2396,7 +2367,7 @@ function confirmSetInfo() {
   goScanStep(2);
 }
 
-// ─── CORRECTIONS / LEARNING SYSTEM ───────────────────────────────────────────
+// âââ CORRECTIONS / LEARNING SYSTEM âââââââââââââââââââââââââââââââââââââââââââ
 let _pendingCorrections = [];
 let _correctionIdx = 0;
 
@@ -2427,7 +2398,7 @@ function generateSuggestedLesson(card, initialNote, finalNote) {
   if (initialNote && !finalNote) {
     return `${player}${num}: remove the note "${initialNote}" (note should be blank)`;
   }
-  return `${player}${num}: "${initialNote}" → "${finalNote}"`;
+  return `${player}${num}: "${initialNote}" â "${finalNote}"`;
 }
 
 function checkForCorrections(writtenCards) {
@@ -2504,7 +2475,7 @@ function nextCorrection() {
   }
 }
 
-// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+// âââ NAVIGATION âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function goTo(screen) {
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -2514,7 +2485,7 @@ function goTo(screen) {
   if (screen === 'sets') loadSheetsList();
 }
 
-// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+// âââ SETTINGS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function openSettings() {
   document.getElementById('settings-api-key').value = getApiKey();
   document.getElementById('settings-modal').classList.add('open');
@@ -2533,7 +2504,7 @@ function saveApiKey() {
   closeSettings();
 }
 
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
+// âââ UTILITIES ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg;
