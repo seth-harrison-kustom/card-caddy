@@ -1,1 +1,2549 @@
-computer:///sessions/hopeful-youthful-cerf/mnt/outputs/card-caddy.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Card Caddy</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #0d0d0d; --bg2: #1a1a1a; --bg3: #242424;
+  --green: #22c55e; --green2: #16a34a; --red: #ef4444;
+  --blue: #3b82f6; --yellow: #f59e0b; --purple: #a855f7;
+  --text: #f0f0f0; --text2: #a0a0a0; --border: #2e2e2e;
+  --radius: 12px; --safe-bottom: env(safe-area-inset-bottom, 20px);
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; overflow: hidden; }
+#root { display: flex; flex-direction: column; height: 100vh; max-width: 480px; margin: 0 auto; position: relative; }
+
+/* AUTH SCREEN */
+#auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 32px; padding: 40px 24px; }
+#auth-screen .logo { font-size: 64px; }
+#auth-screen h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+#auth-screen p { color: var(--text2); text-align: center; line-height: 1.5; }
+#google-signin-btn { background: #fff; color: #111; border: none; border-radius: 10px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; }
+#google-signin-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+#google-signin-btn:active { opacity: 0.8; }
+
+/* API KEY SETUP SCREEN */
+#apikey-screen { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 24px; padding: 40px 24px; }
+#apikey-screen .logo { font-size: 56px; }
+#apikey-screen h2 { font-size: 24px; font-weight: 700; text-align: center; }
+#apikey-screen p { color: var(--text2); text-align: center; line-height: 1.6; font-size: 14px; }
+#apikey-screen textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text); font-size: 13px; font-family: monospace; min-height: 80px; resize: none; }
+#apikey-screen textarea:focus { outline: none; border-color: var(--green); }
+.apikey-hint { font-size: 12px; color: var(--text2); text-align: center; }
+.apikey-hint a { color: var(--blue); text-decoration: none; }
+
+/* HEADER */
+#header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+#header h1 { font-size: 20px; font-weight: 700; }
+#header .subtitle { font-size: 12px; color: var(--text2); }
+.icon-btn { background: var(--bg3); border: none; color: var(--text); width: 38px; height: 38px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.icon-btn:active { opacity: 0.7; }
+
+/* MAIN CONTENT */
+#content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* BOTTOM NAV */
+#bottom-nav { display: flex; background: var(--bg2); border-top: 1px solid var(--border); padding-bottom: var(--safe-bottom); }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; border: none; background: none; color: var(--text2); cursor: pointer; font-size: 10px; font-weight: 500; }
+.nav-btn.active { color: var(--green); }
+.nav-btn svg { width: 22px; height: 22px; }
+.nav-btn:active { opacity: 0.7; }
+
+/* SCREENS */
+.screen { display: none; padding: 20px; }
+.screen.active { display: block; }
+
+/* HOME SCREEN */
+.welcome { margin-bottom: 24px; }
+.welcome h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.welcome p { color: var(--text2); font-size: 14px; }
+.action-cards { display: grid; gap: 12px; }
+.action-card { background: var(--bg2); border-radius: var(--radius); padding: 20px; cursor: pointer; border: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+.action-card:active { background: var(--bg3); }
+.action-icon { font-size: 32px; width: 52px; height: 52px; background: var(--bg3); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.action-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.action-card p { font-size: 13px; color: var(--text2); line-height: 1.4; }
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.stat-card { background: var(--bg2); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
+.stat-card .num { font-size: 28px; font-weight: 700; color: var(--green); }
+.stat-card .label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* SCAN SCREEN */
+.scan-step { display: none; }
+.scan-step.active { display: block; }
+.step-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.section-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
+.select-wrap { position: relative; margin-bottom: 16px; }
+.select-wrap select { width: 100%; background: var(--bg2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 14px 40px 14px 16px; font-size: 15px; appearance: none; cursor: pointer; }
+.select-wrap::after { content: '▾'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text2); pointer-events: none; }
+.btn { width: 100%; padding: 15px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:active { background: var(--green2); }
+.btn-secondary { background: var(--bg3); color: var(--text); }
+.btn-secondary:active { background: var(--bg2); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.camera-area { background: var(--bg2); border: 2px dashed var(--border); border-radius: 16px; padding: 48px 24px; text-align: center; cursor: pointer; margin-bottom: 16px; position: relative; }
+.camera-area:active { border-color: var(--green); }
+.camera-area .cam-icon { font-size: 48px; margin-bottom: 12px; }
+.camera-area h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.camera-area p { font-size: 13px; color: var(--text2); }
+#photo-preview { width: 100%; border-radius: 12px; margin-bottom: 8px; display: none; max-height: 300px; object-fit: contain; }
+#file-input { display: none; }
+.photo-actions { display: none; gap: 8px; margin-bottom: 12px; }
+.photo-actions.visible { display: flex; }
+.btn-retake { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; background: var(--bg3); color: var(--text2); }
+.btn-retake:active { background: var(--border); }
+.back-link { display: flex; align-items: center; gap: 6px; color: var(--text2); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 16px; padding: 4px 0; }
+.back-link:active { color: var(--text); }
+.back-link svg { width: 16px; height: 16px; }
+.processing { text-align: center; padding: 40px 24px; }
+.spinner { width: 48px; height: 48px; border: 3px solid var(--bg3); border-top: 3px solid var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.processing h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.processing p { color: var(--text2); font-size: 14px; }
+
+/* CARD RESULTS */
+.results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.results-header h3 { font-size: 18px; font-weight: 700; }
+.badge { background: var(--bg3); border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+.badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
+.badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
+.card-result { background: var(--bg2); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); }
+.card-result.confirmed { border-color: var(--green); }
+.card-result.rejected { border-color: var(--border); opacity: 0.5; }
+.card-result.not-found { border-color: var(--red); }
+.card-result-header { padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
+.card-num { background: var(--bg3); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0; font-family: monospace; }
+.card-info { flex: 1; min-width: 0; }
+.card-info .player { font-size: 15px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-info .meta { font-size: 12px; color: var(--text2); }
+.card-status { font-size: 20px; flex-shrink: 0; }
+.card-parallel { background: rgba(168,85,247,0.15); border-top: 1px solid rgba(168,85,247,0.2); padding: 10px 16px; font-size: 13px; color: var(--purple); }
+.card-match { background: rgba(34,197,94,0.08); border-top: 1px solid rgba(34,197,94,0.15); padding: 10px 16px; font-size: 13px; color: var(--green); }
+.card-nomatch { background: rgba(239,68,68,0.08); border-top: 1px solid rgba(239,68,68,0.15); padding: 10px 16px; font-size: 13px; color: var(--red); }
+.card-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.act-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+.act-btn.confirm { background: rgba(34,197,94,0.15); color: var(--green); }
+.act-btn.confirm:active { background: rgba(34,197,94,0.25); }
+.act-btn.skip { background: var(--bg3); color: var(--text2); }
+.act-btn.skip:active { background: var(--border); }
+.note-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 0; resize: vertical; min-height: 38px; font-family: inherit; line-height: 1.4; }
+.card-result.low-conf { border-color: var(--yellow); }
+.low-conf-banner { background: rgba(245,158,11,0.08); border-top: 1px solid rgba(245,158,11,0.2); padding: 10px 16px; font-size: 13px; color: var(--yellow); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.include-btn { background: rgba(245,158,11,0.15); border: none; color: var(--yellow); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.include-btn:active { background: rgba(245,158,11,0.25); }
+.include-btn.included { background: rgba(34,197,94,0.15); color: var(--green); cursor: default; }
+.count-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-top: 1px solid var(--border); }
+.count-label { font-size: 12px; color: var(--text2); }
+.count-controls { display: flex; align-items: center; gap: 10px; }
+.adj-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.adj-btn:active { background: var(--border); }
+.count-val { font-size: 16px; font-weight: 700; min-width: 28px; text-align: center; color: var(--yellow); }
+.review-section { background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; }
+.review-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2); padding: 10px 14px 4px; }
+.review-item { font-size: 13px; padding: 3px 14px; line-height: 1.45; color: var(--text); }
+.review-empty { font-size: 13px; padding: 3px 14px 6px; color: var(--text2); font-style: italic; }
+.lesson-item { color: var(--blue) !important; }
+.dig-btn { width: 100%; background: none; border: none; border-top: 1px solid var(--border); padding: 10px 14px; font-size: 13px; color: var(--text2); text-align: left; cursor: pointer; }
+.dig-btn:active { background: var(--bg3); }
+.dig-btn:disabled { opacity: 0.4; cursor: default; }
+.correction-card { background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 16px; }
+.correction-row { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.correction-row:last-child { border-bottom: none; }
+.correction-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+.correction-value { font-size: 14px; font-weight: 500; }
+.correction-value.dimmed { color: var(--text2); font-style: italic; }
+.already-have { background: rgba(34,197,94,0.05); border-top: 1px solid rgba(34,197,94,0.1); padding: 8px 16px; font-size: 12px; color: var(--text2); }
+.results-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.success-screen { text-align: center; padding: 48px 24px; }
+.success-screen .check { font-size: 64px; margin-bottom: 16px; }
+.success-screen h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.success-screen p { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+
+/* SETS SCREEN */
+.sets-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.search-input { flex: 1; background: var(--bg2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.sheet-item { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 12px; }
+.sheet-item:active { background: var(--bg3); }
+.sheet-icon { font-size: 24px; width: 40px; height: 40px; background: rgba(34,197,94,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sheet-name { font-size: 14px; font-weight: 500; line-height: 1.3; }
+.sheet-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.load-more { text-align: center; color: var(--text2); font-size: 14px; padding: 16px; }
+
+/* NEW SET SCREEN */
+.upload-area { background: var(--bg2); border: 2px dashed var(--border); border-radius: 16px; padding: 40px 24px; text-align: center; cursor: pointer; margin-bottom: 16px; }
+.upload-area:active { border-color: var(--green); }
+.upload-area .up-icon { font-size: 40px; margin-bottom: 12px; }
+.upload-area h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.upload-area p { font-size: 13px; color: var(--text2); }
+#xlsx-input { display: none; }
+.field-group { margin-bottom: 14px; }
+.field-label { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: block; }
+.field-input { width: 100%; background: var(--bg2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 15px; }
+.result-box { background: var(--bg2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; border: 1px solid var(--green); }
+.result-box .label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+.result-box .value { font-size: 14px; font-weight: 600; color: var(--green); word-break: break-all; font-family: monospace; }
+
+/* SETTINGS MODAL */
+#settings-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(4px); }
+#settings-modal.open { display: flex; align-items: flex-end; }
+.modal-sheet { background: var(--bg2); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; margin: 0 auto; padding: 24px 24px calc(24px + var(--safe-bottom)); max-height: 80vh; overflow-y: auto; }
+.modal-handle { width: 36px; height: 4px; background: var(--bg3); border-radius: 2px; margin: 0 auto 24px; }
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+.settings-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.settings-item:last-child { border-bottom: none; }
+.settings-label { font-size: 15px; }
+.settings-value { font-size: 13px; color: var(--text2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-section { margin-bottom: 24px; }
+.settings-section-title { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+textarea.field-input { min-height: 80px; resize: none; font-family: monospace; font-size: 12px; }
+.btn-danger { background: rgba(239,68,68,0.15); color: var(--red); }
+.btn-danger:active { background: rgba(239,68,68,0.25); }
+
+/* TOASTS */
+#toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 200; white-space: nowrap; }
+#toast.show { opacity: 1; }
+#toast.success { border-color: var(--green); color: var(--green); }
+#toast.error { border-color: var(--red); color: var(--red); }
+
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text2); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+.tag { display: inline-block; background: rgba(168,85,247,0.15); color: var(--purple); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin-top: 4px; }
+.add-card-form { padding: 10px 16px 14px; border-top: 1px solid rgba(239,68,68,0.15); }
+.add-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.add-form-grid-full { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+.add-form-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; display: block; }
+.add-form-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+.add-form-actions { display: flex; gap: 8px; margin-top: 10px; }
+.card-variation-warn { background: rgba(245,158,11,0.08); border-top: 1px solid rgba(245,158,11,0.2); padding: 10px 16px; font-size: 13px; color: var(--yellow); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.closeup-btn { background: rgba(245,158,11,0.15); border: none; color: var(--yellow); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.closeup-btn:active { background: rgba(245,158,11,0.25); }
+#closeup-input { display: none; }
+.set-info-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(59,130,246,0.12); color: var(--blue); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="logo">🃏</div>
+  <div>
+    <h1>Card Caddy</h1>
+    <p style="margin-top:8px">Your baseball card collection assistant.<br>Scan, identify, and log cards instantly.</p>
+  </div>
+  <button id="google-signin-btn" onclick="signIn()">
+    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Sign in with Google
+  </button>
+  <p style="font-size:12px;color:var(--text2)">Uses your Google account to access your card spreadsheets</p>
+</div>
+
+<!-- API KEY SETUP -->
+<div id="apikey-screen">
+  <div class="logo">🔑</div>
+  <div style="text-align:center">
+    <h2>One more thing</h2>
+    <p style="margin-top:8px">Paste your Anthropic API key to enable card scanning and set info lookups. It's stored locally in your browser — never sent anywhere except Anthropic's API.</p>
+  </div>
+  <textarea id="apikey-input" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <p class="apikey-hint">Get your key at <a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a></p>
+  <button class="btn btn-primary" style="width:100%" onclick="saveApiKeyAndContinue()">Let's go →</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-screen" style="display:none;flex-direction:column;height:100vh;">
+
+  <div id="header">
+    <div>
+      <h1>🃏 Card Caddy</h1>
+      <div class="subtitle" id="user-label">Ready</div>
+    </div>
+    <button class="icon-btn" onclick="openSettings()">⚙️</button>
+  </div>
+
+  <div id="content">
+
+    <!-- HOME -->
+    <div id="home-screen" class="screen active">
+      <div class="welcome">
+        <h2>What's up, Seth 👋</h2>
+        <p>Pick a mode to get started</p>
+      </div>
+      <div class="action-cards">
+        <div class="action-card" onclick="goTo('scan')">
+          <div class="action-icon">📸</div>
+          <div>
+            <h3>Scan &amp; Log</h3>
+            <p>Photograph cards and check them off your spreadsheet automatically</p>
+          </div>
+        </div>
+        <div class="action-card" onclick="goTo('newset')">
+          <div class="action-icon">📋</div>
+          <div>
+            <h3>New Set Setup</h3>
+            <p>Upload a Beckett XLSX to format and add to your collection system</p>
+          </div>
+        </div>
+        <div class="action-card" onclick="goTo('sets')">
+          <div class="action-icon">🗂️</div>
+          <div>
+            <h3>Browse Sets</h3>
+            <p>Find and open any set checklist from your Drive folder</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN -->
+    <div id="scan-screen" class="screen">
+
+      <!-- Step 1: Select Set -->
+      <div id="scan-step-1" class="scan-step active">
+        <div class="back-link" onclick="goTo('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Home
+        </div>
+        <div class="step-label">Step 1 of 3</div>
+        <h2 class="section-title">Select Set</h2>
+        <p class="section-sub">Which set are you logging cards for?</p>
+        <div class="select-wrap">
+          <select id="set-select" onchange="onSetSelected()">
+            <option value="">— Loading your sets… —</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="load-set-btn" onclick="loadSelectedSet()" disabled>Load Set →</button>
+        <div id="set-loading" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:14px;">Loading set data…</div>
+      </div>
+
+      <!-- Step 1b: Set Info Review -->
+      <div id="scan-step-1b" class="scan-step">
+        <div class="back-link" onclick="goScanStep(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Change Set
+        </div>
+        <div class="step-label">Set Intelligence</div>
+        <h2 class="section-title">Set Info</h2>
+        <p class="section-sub" id="set-review-sub">Reviewing what we know…</p>
+        <div id="set-review-content" style="margin-bottom:20px;"></div>
+        <button class="btn btn-primary" onclick="confirmSetInfo()">Continue → Take Photo</button>
+      </div>
+
+      <!-- Step 2: Take Photo -->
+      <div id="scan-step-2" class="scan-step">
+        <div class="back-link" onclick="goScanStep(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Change Set
+        </div>
+        <div class="step-label">Step 2 of 3</div>
+        <h2 class="section-title">Take Photo</h2>
+        <p class="section-sub">Base cards face-down (back up) · Parallels face-up · Duplicates stacked</p>        <div class="camera-area" id="camera-tap-area" onclick="triggerCamera()">
+          <div class="cam-icon">📷</div>
+          <h3>Tap to photograph cards</h3>
+          <p>Backs up for base cards · Fronts up for parallels · Stack dupes</p>
+        </div>
+        <img id="photo-preview" alt="Card photo">
+        <div class="photo-actions" id="photo-actions">
+          <button class="btn-retake" onclick="retakePhoto()">🔄 Retake Photo</button>
+        </div>
+        <input type="file" id="file-input" accept="image/*" capture="environment" onchange="onPhotoSelected(event)">
+        <input type="file" id="closeup-input" accept="image/*" capture="environment" onchange="onCloseupSelected(event)">
+        <button class="btn btn-primary" id="scan-btn" onclick="runScan()" disabled style="margin-bottom:10px;">🔍 Identify Cards</button>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+          <div id="scan-set-label" style="font-size:13px;color:var(--text2)"></div>
+          <button id="relookup-btn" onclick="relookupSetInfo()" title="Re-fetch set info" style="display:none;background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;padding:2px 4px;opacity:0.7;">🔄</button>
+        </div>
+        <div id="img-size-label" style="text-align:center;margin-top:4px;font-size:11px;color:var(--text2)"></div>
+      </div>
+
+      <!-- Step 3: Processing -->
+      <div id="scan-step-3" class="scan-step">
+        <div class="processing">
+          <div class="spinner"></div>
+          <h3>Reading your cards…</h3>
+          <p>Claude is identifying each card in the photo</p>
+        </div>
+      </div>
+
+      <!-- Step 4: Change Preview -->
+      <div id="scan-step-4" class="scan-step">
+        <div class="back-link" onclick="goScanStep(2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Retake Photo
+        </div>
+        <div class="results-header">
+          <h3>Change Preview</h3>
+          <div id="results-badge" class="badge green"></div>
+        </div>
+        <div id="card-results-list"></div>
+        <div style="margin-top:16px;display:grid;gap:10px;">
+          <button class="btn btn-primary" id="write-btn" onclick="writeChanges()">✓ Write to Sheet</button>
+          <button class="btn btn-secondary" onclick="goScanStep(1)">🔄 Change Set</button>
+        </div>
+      </div>
+
+      <!-- Step 4b: Correction Confirm -->
+      <div id="scan-step-4b" class="scan-step">
+        <div class="step-label">Learning from your edits</div>
+        <h2 class="section-title">Confirm Lesson?</h2>
+        <p class="section-sub">You changed a note — save this as a rule for future scans of this set?</p>
+        <div id="correction-content" style="margin-bottom:4px;"></div>
+        <div style="display:grid;gap:10px;margin-top:16px;">
+          <button class="btn btn-primary" onclick="confirmLesson()">💡 Save This Lesson</button>
+          <button class="btn btn-secondary" onclick="skipLesson()">Skip</button>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div id="scan-step-5" class="scan-step">
+        <div class="success-screen">
+          <div class="check">✅</div>
+          <h2 id="success-title">Cards Logged!</h2>
+          <p id="success-msg">Written to your sheet</p>
+          <button class="btn btn-primary" style="margin-bottom:10px" onclick="resetScan()">📷 Scan More Cards</button>
+          <button class="btn btn-secondary" style="margin-bottom:10px" onclick="goScanStep(1)">🔄 Change Set</button>
+          <button class="btn btn-secondary" onclick="goTo('home')">🏠 Done</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SETS BROWSER -->
+    <div id="sets-screen" class="screen">
+      <h2 class="section-title">Your Sets</h2>
+      <p class="section-sub" style="margin-bottom:16px">All checklists in your Drive folder</p>
+      <div class="sets-header">
+        <input class="search-input" type="search" placeholder="Search sets…" id="sets-search" oninput="filterSets()">
+        <button class="icon-btn" onclick="loadSheetsList(true)">↻</button>
+      </div>
+      <div id="sets-list"><div class="empty-state"><div class="icon">📂</div><p>Loading your sets…</p></div></div>
+    </div>
+
+    <!-- NEW SET -->
+    <div id="newset-screen" class="screen">
+      <h2 class="section-title">New Set Setup</h2>
+      <p class="section-sub">Upload a Beckett XLSX to auto-format and add to your system</p>
+
+      <div class="upload-area" onclick="document.getElementById('xlsx-input').click()">
+        <div class="up-icon">📄</div>
+        <h3>Upload Beckett XLSX</h3>
+        <p>The checklist file downloaded from Beckett</p>
+      </div>
+      <input type="file" id="xlsx-input" accept=".xlsx,.xls" onchange="onXlsxSelected(event)">
+
+      <div id="newset-form" style="display:none">
+        <div class="field-group">
+          <label class="field-label">Year</label>
+          <input class="field-input" type="text" id="ns-year" placeholder="e.g. 2026">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Brand</label>
+          <input class="field-input" type="text" id="ns-brand" placeholder="e.g. Topps">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Series</label>
+          <input class="field-input" type="text" id="ns-series" placeholder="e.g. Heritage">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Sheet Name (auto-generated)</label>
+          <input class="field-input" type="text" id="ns-sheetname" placeholder="YYYY-Brand-Series-Baseball-Checklist">
+        </div>
+        <button class="btn btn-primary" style="margin-bottom:10px" onclick="createNewSet()">Create Google Sheet →</button>
+        <button class="btn btn-secondary" onclick="resetNewSet()">✕ Cancel</button>
+      </div>
+
+      <div id="newset-result" style="display:none">
+        <div class="result-box">
+          <div class="label">Sheet ID (add this to your fetch script)</div>
+          <div class="value" id="ns-sheet-id"></div>
+        </div>
+        <div class="result-box">
+          <div class="label">Sheet URL</div>
+          <div class="value" id="ns-sheet-url"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-bottom:10px" onclick="openSheet()">Open Sheet ↗</button>
+        <button class="btn btn-secondary" onclick="resetNewSet()">Set Up Another</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" id="nav-scan" onclick="goTo('scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Scan
+    </button>
+    <button class="nav-btn" id="nav-sets" onclick="goTo('sets')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Sets
+    </button>
+    <button class="nav-btn" id="nav-newset" onclick="goTo('newset')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      New Set
+    </button>
+  </nav>
+
+</div><!-- /app-screen -->
+
+</div><!-- /root -->
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" onclick="closeSettings(event)">
+  <div class="modal-sheet" onclick="e=>e.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ Settings</div>
+    <div class="settings-section">
+      <div class="settings-section-title">Account</div>
+      <div class="settings-item">
+        <span class="settings-label">Signed in as</span>
+        <span class="settings-value" id="settings-email">—</span>
+      </div>
+      <div class="settings-item">
+        <span class="settings-label">Drive folder</span>
+        <span class="settings-value">Baseball / Set Checklists</span>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Anthropic API Key</div>
+      <textarea class="field-input" id="settings-api-key" placeholder="sk-ant-api03-..."></textarea>
+      <button class="btn btn-secondary" style="margin-top:8px" onclick="saveApiKey()">Save Key</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Actions</div>
+      <button class="btn btn-danger" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const GOOGLE_CLIENT_ID = '950570107456-k31cuecqv95b9vlqkq0eh8ud5fjuf2lj.apps.googleusercontent.com';
+const DRIVE_FOLDER_ID  = '13OVgzl8ZBfamHtfteVOBo6wqJ4QgHF8G';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
+
+// Column indices (0-based)
+const COL = { IN_COLL:0, YEAR:1, BRAND:2, SERIES:3, TYPE:4, NUM:5, PLAYER:6, TEAM:7, CARD_INFO:8, SELL:9, PURCHASE:10, NOTE:11 };
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let accessToken = null;
+let tokenExpiry = null;
+let allSheets = [];
+let currentSheetId = null;
+let currentSheetName = '';   // human-readable name of the loaded set
+let currentSheetData = null;  // array of rows [{rowNum, data:[...]}]
+let identifiedCards = [];
+let confirmedCount = 0;
+let newSheetId = null;
+let xlsxWorkbook = null; // { sheets:{name:rows[]}, sheetNames:[], hasMaster:bool }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Check for stored token
+  const stored = sessionStorage.getItem('cc_token');
+  const storedExpiry = sessionStorage.getItem('cc_expiry');
+  if (stored && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+    accessToken = stored;
+    tokenExpiry = parseInt(storedExpiry);
+    showApp();
+  }
+});
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function signIn() {
+  if (!window.google) { showToast('Google SDK still loading…', 'error'); return; }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { showToast('Sign-in failed: ' + resp.error, 'error'); return; }
+      accessToken = resp.access_token;
+      tokenExpiry = Date.now() + (resp.expires_in * 1000) - 60000;
+      sessionStorage.setItem('cc_token', accessToken);
+      sessionStorage.setItem('cc_expiry', tokenExpiry.toString());
+      showApp();
+    }
+  });
+  client.requestAccessToken({ prompt: 'consent' });
+}
+
+function signOut() {
+  accessToken = null;
+  sessionStorage.removeItem('cc_token');
+  sessionStorage.removeItem('cc_expiry');
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('apikey-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  closeSettings();
+}
+
+function getApiKey() { return localStorage.getItem('cc_anthropic_key') || ''; }
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('apikey-screen').style.display = 'none';
+  // If no API key stored yet, show the setup screen first
+  if (!localStorage.getItem('cc_anthropic_key')) {
+    document.getElementById('apikey-screen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('app-screen').style.display = 'flex';
+  loadUserInfo();
+  loadSheetsList();
+}
+
+function saveApiKeyAndContinue() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key || !key.startsWith('sk-ant-')) {
+    showToast('Enter a valid Anthropic API key (starts with sk-ant-)', 'error');
+    return;
+  }
+  localStorage.setItem('cc_anthropic_key', key);
+  document.getElementById('apikey-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  loadUserInfo();
+  loadSheetsList();
+}
+
+async function loadUserInfo() {
+  try {
+    const r = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    const u = await r.json();
+    document.getElementById('user-label').textContent = u.email || 'Signed in';
+    document.getElementById('settings-email').textContent = u.email || '—';
+  } catch(e) {}
+}
+
+// ─── GOOGLE API ───────────────────────────────────────────────────────────────
+async function gFetch(url, opts={}) {
+  if (!accessToken) throw new Error('Not authenticated');
+  const headers = { 'Authorization': `Bearer ${accessToken}`, ...(opts.headers||{}) };
+  return fetch(url, { ...opts, headers });
+}
+
+async function loadSheetsList(forceRefresh=false) {
+  try {
+    const q = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const r = await gFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=100&fields=files(id,name,modifiedTime)&orderBy=name`);
+    const data = await r.json();
+    allSheets = data.files || [];
+    updateSetsUI();
+    updateScanSelect();
+  } catch(e) {
+    console.error(e);
+    showToast('Could not load sets', 'error');
+  }
+}
+
+function updateScanSelect() {
+  const sel = document.getElementById('set-select');
+  sel.innerHTML = '<option value="">— Choose a set —</option>';
+  allSheets.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+}
+
+function updateSetsUI() {
+  renderSetsList(allSheets);
+}
+
+function renderSetsList(sheets) {
+  const el = document.getElementById('sets-list');
+  if (!sheets.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📂</div><p>No sets found in your Drive folder</p></div>'; return; }
+  el.innerHTML = sheets.map(s => `
+    <div class="sheet-item" onclick="openSheetUrl('${s.id}')">
+      <div class="sheet-icon">📊</div>
+      <div>
+        <div class="sheet-name">${s.name}</div>
+        <div class="sheet-meta">Modified ${formatDate(s.modifiedTime)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterSets() {
+  const q = document.getElementById('sets-search').value.toLowerCase();
+  renderSetsList(allSheets.filter(s => s.name.toLowerCase().includes(q)));
+}
+
+function openSheetUrl(id) {
+  window.open(`https://docs.google.com/spreadsheets/d/${id}/edit`, '_blank');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+// ─── SHEET DATA ───────────────────────────────────────────────────────────────
+async function loadSelectedSet() {
+  const id = document.getElementById('set-select').value;
+  if (!id) return;
+  document.getElementById('load-set-btn').disabled = true;
+  const loadingEl = document.getElementById('set-loading');
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Loading set data…';
+  try {
+    const sheetName = allSheets.find(s=>s.id===id)?.name || 'Set';
+    await loadSheetData(id);
+    currentSheetId = id;
+    currentSheetName = sheetName;
+    loadingEl.textContent = '🧠 Looking up set info…';
+    await loadSetInfo(sheetName);
+    updateSetLabel(sheetName);
+    document.getElementById('relookup-btn').style.display = '';
+    loadingEl.style.display = 'none';
+    const parallelCount = window._setInfo?.parallels?.length || 0;
+    const varCount = (window._setInfo?.variations?.length || 0) + (window._setInfo?.short_prints?.length || 0);
+    showSetInfoReview(sheetName);
+    showToast(`Loaded ${currentSheetData.length} cards · ${parallelCount} parallels, ${varCount} variations`, 'success');
+  } catch(e) {
+    loadingEl.style.display = 'none';
+    showToast('Failed to load sheet: ' + e.message, 'error');
+  }
+  document.getElementById('load-set-btn').disabled = false;
+}
+
+function _parseCardRows(rows) {
+  return rows.map((row, idx) => ({
+    rowNum: idx + 1,
+    data: row
+  })).filter(({data}) => {
+    const num = data[COL.NUM];
+    return num && num.trim() && (
+      !isNaN(num.trim().replace(/[^0-9]/g,'')) || !!num.trim().match(/^[A-Z0-9][-A-Z0-9]*$/)
+    );
+  });
+}
+
+async function loadSheetData(id) {
+  // Always read from the "Master" tab; fall back to first tab if not found
+  const tabsToTry = ['Master'];
+
+  // Get tab list so we can fall back to tab 1 if Master is missing
+  try {
+    const metaResp = await gFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=sheets.properties`
+    );
+    if (metaResp.ok) {
+      const meta = await metaResp.json();
+      const first = (meta.sheets || [])[0]?.properties?.title;
+      if (first && first !== 'Master') tabsToTry.push(first);
+    }
+  } catch(e) { /* ignore, we'll just try Master */ }
+
+  for (const tab of tabsToTry) {
+    const enc = encodeURIComponent(tab);
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${enc}!A:L`);
+    if (!r.ok) continue;
+    const data = await r.json();
+    const rows = _parseCardRows(data.values || []);
+    if (rows.length > 0) {
+      console.log(`[CardCaddy] Loaded tab "${tab}" — ${rows.length} card rows`);
+      currentSheetData = rows;
+      return;
+    }
+  }
+
+  throw new Error('No card data found — make sure the sheet has a "Master" tab');
+}
+
+function normalizeName(name) {
+  return (name || '').toLowerCase().trim()
+    .replace(/\./g, '')        // Fernando Tatis Jr. → Fernando Tatis Jr
+    .replace(/\s+/g, ' ');     // collapse whitespace
+}
+
+function findCardByNumber(cardNum) {
+  if (!currentSheetData || !cardNum) return null;
+  const n = cardNum.toString().trim().toLowerCase();
+  if (n === 'unknown' || n === '') return null;
+  return currentSheetData.find(({data}) => {
+    const rowNum = (data[COL.NUM]||'').toString().trim().toLowerCase();
+    return rowNum === n;
+  }) || null;
+}
+
+// Find all sheet rows matching a player name (used to handle multiple rows per player)
+function findRowsByPlayer(playerName) {
+  if (!currentSheetData || !playerName) return [];
+  const search = normalizeName(playerName);
+  if (!search) return [];
+  return currentSheetData.filter(({data}) => {
+    const sheet = normalizeName(data[COL.PLAYER]);
+    return sheet === search || (sheet.length > 3 && (sheet.includes(search) || search.includes(sheet)));
+  });
+}
+
+// Pick the best row from multiple player matches using TYPE column + detected parallel.
+// This handles sets where each parallel is its own row.
+function pickBestRow(rows, parallelDetected) {
+  if (!rows.length) return null;
+  if (rows.length === 1) return rows[0];
+
+  if (parallelDetected) {
+    const p = normalizeName(parallelDetected);
+    // 1. TYPE column contains the parallel name
+    let match = rows.find(({data}) => {
+      const t = normalizeName(data[COL.TYPE] || '');
+      return t.includes(p) || p.includes(t);
+    });
+    if (match) return match;
+    // 2. CARD_INFO column contains it
+    match = rows.find(({data}) => {
+      const ci = normalizeName(data[COL.CARD_INFO] || '');
+      return ci.includes(p) || p.includes(ci);
+    });
+    if (match) return match;
+    // 3. Try word-level partial: any significant word of the parallel in TYPE
+    const pWords = p.split(' ').filter(w => w.length > 3);
+    match = rows.find(({data}) => {
+      const t = normalizeName(data[COL.TYPE] || '');
+      return pWords.some(w => t.includes(w));
+    });
+    if (match) return match;
+  } else {
+    // Looking for a base card — prefer rows with TYPE = "Base" or empty/null TYPE
+    const base = rows.find(({data}) => {
+      const t = (data[COL.TYPE] || '').toLowerCase().trim();
+      return t === '' || t === 'base' || t === 'base set' || t === 'base card';
+    });
+    if (base) return base;
+  }
+
+  // Fallback: first row found
+  return rows[0];
+}
+
+// Primary card lookup:
+// 1. Try card number (exact, most precise)
+// 2. Fall back to player name + parallel-type-aware row selection
+// Returns {match, method, allByName}
+// claimedRows: set of rowNums already matched by earlier cards in this batch —
+//   used to route multiple same-player cards to different rows.
+function findCard(cardNum, playerName, parallelDetected, claimedRows) {
+  const byNum = findCardByNumber(cardNum);
+  if (byNum) return { match: byNum, method: 'number', allByName: [] };
+
+  const byNameRows = findRowsByPlayer(playerName);
+
+  // If a claimed-rows set is provided and there are multiple rows for this player,
+  // skip rows already taken by another card in this batch.
+  let candidateRows = byNameRows;
+  if (claimedRows && claimedRows.size > 0 && byNameRows.length > 1) {
+    const unclaimed = byNameRows.filter(r => !claimedRows.has(r.rowNum));
+    if (unclaimed.length > 0) candidateRows = unclaimed;
+    // If everything is claimed, still fall through to all rows (dedup will handle it)
+  }
+
+  const best = pickBestRow(candidateRows, parallelDetected);
+  return {
+    match: best || null,
+    method: best ? 'name' : null,
+    allByName: byNameRows
+  };
+}
+
+// ─── SET INTELLIGENCE ─────────────────────────────────────────────────────────
+async function loadSetInfo(setName) {
+  const cacheKey = `cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try { window._setInfo = JSON.parse(cached); return; } catch(e) {}
+  }
+  window._setInfo = null;
+  const apiKey = getApiKey();
+  if (!apiKey) return;
+
+  const statusEl = document.getElementById('set-loading');
+  const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
+
+  // Debug log — visible in UI via debug button
+  const dbg = [];
+  window._fetchDebugLog = dbg;
+  const log = (msg) => { dbg.push(msg); console.log('[CardCaddy]', msg); };
+  const warn = (msg) => { dbg.push('⚠ ' + msg); console.warn('[CardCaddy]', msg); };
+
+  // CORS proxy waterfall — tried in order until one works
+  const PROXIES = [
+    { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+    { name: 'allorigins',     fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+    { name: 'codetabs',       fn: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+    { name: 'direct',         fn: u => u },
+  ];
+
+  // ── STEP 1: Ask Claude to generate the checklistinsider URL ──
+  setStatus('🧠 Identifying set…');
+  let checklistUrl = null;
+  let urlAlts = [];
+  try {
+    const urlResp = await claudeCall(apiKey, 250, `This is a Google Sheet name from a baseball card collection: "${setName}"
+
+Identify the exact baseball card set and generate the checklistinsider.com URL(s) for its checklist page.
+The URL slug pattern is: {year}-{brand}-{series}-baseball (all lowercase, hyphens, no trailing slash)
+
+Examples:
+- "2024-Topps-Archives-Baseball-Checklist" → primary: "2024-topps-archives-baseball"
+- "2023 Topps Heritage" → primary: "2023-topps-heritage-baseball"
+- "2025-Topps-Series-1-Baseball" → primary: "2025-topps-series-1-baseball"
+- "2024 Bowman Draft" → primary: "2024-bowman-draft-baseball", alt: "2024-bowman-draft"
+
+Return ONLY valid JSON (no markdown), with the most likely slug first, and 1-2 alt slugs if plausible:
+{"primary":"SLUG","alts":["SLUG2"]}`);
+
+    try {
+      const t = urlResp.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
+      const parsed = JSON.parse(t);
+      if (parsed.primary) {
+        const base = 'https://www.checklistinsider.com/';
+        checklistUrl = base + parsed.primary.replace(/^\/+|\/+$/g,'');
+        urlAlts = (parsed.alts || []).map(a => base + a.replace(/^\/+|\/+$/g,''));
+      }
+    } catch(e) { warn('URL JSON parse failed: ' + urlResp.slice(0,100)); }
+    log(`Step 1 URL: ${checklistUrl} | alts: ${urlAlts.join(', ')}`);
+  } catch(e) {
+    warn('Step 1 (URL gen) failed: ' + e.message);
+  }
+
+  // ── STEP 2: Try fetching the page via proxy waterfall ──
+  if (checklistUrl) {
+    const urlsToTry = [checklistUrl, ...urlAlts];
+    outer: for (const targetUrl of urlsToTry) {
+      for (const proxy of PROXIES) {
+        const proxyUrl = proxy.fn(targetUrl);
+        setStatus(`🌐 Fetching via ${proxy.name}…`);
+        log(`Trying ${proxy.name} → ${targetUrl}`);
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 15000);
+          const pageResp = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(tid);
+          log(`${proxy.name} HTTP ${pageResp.status}`);
+
+          if (!pageResp.ok) { warn(`${proxy.name}: HTTP ${pageResp.status}`); continue; }
+
+          const html = await pageResp.text();
+          log(`${proxy.name}: got ${html.length} chars`);
+          if (!html || html.length < 500) { warn(`${proxy.name}: response too short`); continue; }
+
+          const lc = html.toLowerCase();
+          if (lc.includes('page not found') || lc.includes('404 not found') || lc.includes("couldn't be found")) {
+            warn(`${proxy.name}: 404 page content detected`); continue;
+          }
+
+          // Strip HTML → plain text
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          tmp.querySelectorAll('script,style,nav,header,footer,iframe,noscript').forEach(el => el.remove());
+          const pageText = (tmp.textContent || '').replace(/\s+/g,' ').trim();
+          log(`Stripped text: ${pageText.length} chars | preview: "${pageText.slice(0,150)}"`);
+
+          // Validate it's actually a card checklist page
+          const ptlc = pageText.toLowerCase();
+          const hasCardContent = ptlc.includes('parallel') || ptlc.includes('foil') || ptlc.includes('checklist') || ptlc.includes('short print') || ptlc.includes('variation') || ptlc.includes('topps') || ptlc.includes('bowman') || ptlc.includes('panini');
+          if (!hasCardContent) { warn(`${proxy.name}: page doesn't look like a card checklist`); continue; }
+
+          // ── STEP 3: Claude parses the page ──
+          setStatus('🧠 Parsing set info…');
+          log('Sending to Claude for parsing…');
+          // Use first 40K chars — reduces output length needed
+          const pageSlice = pageText.slice(0, 40000);
+          const parseText = await claudeCall(apiKey, 4096, `Parse this baseball card checklist page and extract ALL parallel and variation information. Be thorough — include EVERY parallel, even if there are many. Keep field values SHORT (under 60 chars each) to avoid truncation.
+
+PAGE TEXT:
+${pageSlice}
+
+Return ONLY valid JSON (no markdown):
+{
+  "parallels": [{"name": "Pink Foilboard", "print_run": null, "notes": "Target exclusive"}],
+  "variations": [{"name": "1961 Design", "back_code": "V1", "how_to_spot": "1961 Topps design"}],
+  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo"}],
+  "notes": "brief context"
+}
+
+Rules: print_run = serial number like "/99" or null if unnumbered. notes = retail/hobby/box exclusivity. Omit empty arrays. End with a closing brace.`);
+
+          // Attempt JSON parse with truncation recovery
+          let parsed = null;
+          const cleanText = parseText.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
+          try {
+            parsed = JSON.parse(cleanText);
+          } catch(e) {
+            // Try to repair truncated JSON by finding the last complete object
+            log('JSON truncated — attempting repair…');
+            try {
+              // Find last complete parallel entry and close the structure
+              let repaired = cleanText;
+              // Remove trailing incomplete entry (ends mid-object)
+              repaired = repaired.replace(/,\s*\{[^}]*$/, '');
+              // Close any open arrays and the root object
+              const openBrackets = (repaired.match(/\[/g)||[]).length - (repaired.match(/\]/g)||[]).length;
+              const openBraces = (repaired.match(/\{/g)||[]).length - (repaired.match(/\}/g)||[]).length;
+              repaired += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
+              parsed = JSON.parse(repaired);
+              parsed._truncated = true;
+              log(`Repair succeeded — truncated response recovered`);
+            } catch(e2) {
+              warn(`Claude parse JSON failed (even after repair): ${e.message} | response: ${parseText.slice(0,200)}`);
+            }
+          }
+
+          if (parsed) {
+            parsed._source = 'web';
+            parsed._sourceUrl = targetUrl;
+            parsed._proxy = proxy.name;
+            window._setInfo = parsed;
+            localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
+            log(`✅ Web fetch succeeded via ${proxy.name}! ${parsed.parallels?.length} parallels, ${parsed.variations?.length} variations${parsed._truncated?' (partial — response was truncated)':''}`);
+            return;
+          }
+        } catch(fetchErr) {
+          warn(`${proxy.name} fetch error: ${fetchErr.message}`);
+        }
+      }
+    }
+    warn('All proxies and URLs exhausted — falling back to Claude memory');
+  }
+
+  // ── FALLBACK: Claude memory ──
+  setStatus('🧠 Looking up from memory…');
+  log('Using Claude memory fallback');
+  try {
+    const text = await claudeCall(apiKey, 1500, `You are a baseball card expert. For the set "${setName}", list ALL known parallels, short prints, image variations, and special cards. Be thorough and specific.
+
+Return ONLY valid JSON (no markdown):
+{
+  "parallels": [{"name": "Blue Border", "print_run": "/99", "visual": "blue foil border treatment", "notes": "Retail exclusive"}],
+  "variations": [{"name": "Image Variation", "back_code": "V1", "how_to_spot": "alternate photo vs base card"}],
+  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo or design element"}],
+  "notes": "any important identification context for this set"
+}
+
+If you don't have reliable data for this specific set, return: {"parallels":[],"variations":[],"short_prints":[],"notes":"No specific data available for this set"}`);
+    try {
+      const parsed = JSON.parse(text.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim());
+      parsed._source = 'memory';
+      window._setInfo = parsed;
+      localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
+      log(`Memory fallback: ${parsed.parallels?.length} parallels`);
+    } catch(e) { window._setInfo = null; warn('Memory fallback JSON parse failed'); }
+  } catch(e) {
+    warn('Memory fallback Claude call failed: ' + e.message);
+    window._setInfo = null;
+  }
+}
+
+// Shared Claude API call helper — returns the text content of the first response
+async function claudeCall(apiKey, maxTokens, prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!resp.ok) throw new Error(`Claude API ${resp.status}`);
+  const result = await resp.json();
+  return result.content[0].text;
+}
+
+function getSetContext() {
+  const firstCard = currentSheetData?.find(r => r.data[COL.YEAR]);
+  return {
+    year: firstCard?.data[COL.YEAR] || '',
+    brand: firstCard?.data[COL.BRAND] || '',
+    series: firstCard?.data[COL.SERIES] || ''
+  };
+}
+
+async function markCardCollected(rowNum, note='', alreadyCollected=false) {
+  // Build batch update: only write 'x' to col A if new card, always write note to col L
+  const updates = [];
+
+  if (!alreadyCollected) {
+    // New card — mark as collected
+    updates.push({ range: `A${rowNum}`, values: [['x']] });
+  }
+
+  // Always write whatever note the user confirmed (could be "x2", "Gold Refractor 23/50", etc.)
+  if (note) {
+    updates.push({ range: `L${rowNum}`, values: [[note]] });
+  }
+
+  if (updates.length > 0) {
+    const r = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${currentSheetId}/values:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: updates })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(()=>({}));
+      throw new Error(err.error?.message || `Write failed: ${r.status}`);
+    }
+  }
+
+  // Update local cache so subsequent cards in same batch see the right state
+  const cached = currentSheetData.find(r => r.rowNum === rowNum);
+  if (cached) {
+    cached.data[COL.IN_COLL] = 'x';
+    if (note) cached.data[COL.NOTE] = note;
+  }
+}
+
+// ─── SCAN FLOW ─────────────────────────────────────────────────────────────────
+function onSetSelected() {
+  document.getElementById('load-set-btn').disabled = !document.getElementById('set-select').value;
+}
+
+function triggerCamera() {
+  document.getElementById('file-input').click();
+}
+
+function onPhotoSelected(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const rawData = e.target.result;
+    // Show preview immediately
+    const preview = document.getElementById('photo-preview');
+    preview.src = rawData;
+    preview.style.display = 'block';
+    document.getElementById('camera-tap-area').style.display = 'none';
+    document.getElementById('photo-actions').classList.add('visible');
+    document.getElementById('scan-btn').disabled = true;
+    document.getElementById('img-size-label').textContent = 'Compressing…';
+
+    // Compress to stay under API 5MB limit
+    const compressed = await compressImage(rawData);
+    window._photoData = compressed;
+    window._photoMime = 'image/jpeg';
+
+    // Show compressed size
+    const bytes = Math.round((compressed.length * 3) / 4);
+    const kb = Math.round(bytes / 1024);
+    const sizeStr = kb < 1024 ? `${kb} KB` : `${(kb/1024).toFixed(1)} MB`;
+    document.getElementById('img-size-label').textContent = `📐 ${sizeStr} — ready`;
+    document.getElementById('scan-btn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto() {
+  window._photoData = null;
+  window._photoMime = null;
+  const preview = document.getElementById('photo-preview');
+  preview.src = '';
+  preview.style.display = 'none';
+  document.getElementById('camera-tap-area').style.display = 'block';
+  document.getElementById('photo-actions').classList.remove('visible');
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('file-input').value = '';
+  document.getElementById('img-size-label').textContent = '';
+  // Immediately open camera
+  setTimeout(() => document.getElementById('file-input').click(), 50);
+}
+
+async function compressImage(dataUrl, maxPx = 1568, quality = 0.82) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback to original if something goes wrong
+    img.src = dataUrl;
+  });
+}
+
+async function runScan() {
+  if (!window._photoData) return;
+  if (!getApiKey()) { showToast('No API key — check Settings', 'error'); return; }
+
+  goScanStep(3); // show processing
+
+  try {
+    const base64 = window._photoData.split(',')[1];
+    const mime = window._photoMime || 'image/jpeg';
+
+    // Get set context to help Claude
+    const setName = document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || '';
+
+    // Build sheet roster — grounds Claude to ONLY players in the spreadsheet
+    const rosterLines = (currentSheetData || [])
+      .filter(r => r.data[COL.PLAYER] && r.data[COL.NUM])
+      .map(r => {
+        const type = (r.data[COL.TYPE] || '').trim();
+        const typeTag = (type && !['base','base set','base card',''].includes(type.toLowerCase()))
+          ? ` [${type}]` : '';
+        return `#${r.data[COL.NUM]} ${r.data[COL.PLAYER]}${typeTag}`;
+      })
+      .join('\n');
+
+    // Build known-parallel visual descriptions from set intelligence lookup
+    let setInfoText = '';
+    if (window._setInfo) {
+      const si = window._setInfo;
+      if (si.parallels?.length) {
+        const pList = si.parallels.map(p =>
+          `  • ${p.name}${p.print_run ? ' (' + p.print_run + ')' : ''}: ${p.visual}`
+        ).join('\n');
+        setInfoText += `\nKNOWN PARALLEL VISUAL TREATMENTS (BASE CARDS ONLY — these do not apply to insert cards):\n${pList}\n`;
+      }
+      if (si.variations?.length || si.short_prints?.length) {
+        const vList = [...(si.variations||[]), ...(si.short_prints||[])].map(v =>
+          `  • ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`
+        ).join('\n');
+        setInfoText += `\nKNOWN VARIATIONS/SPs:\n${vList}\n`;
+      }
+    }
+
+    // Inject confirmed lessons from the learning system
+    const corrections = getSetCorrections(currentSheetName || setName);
+    let correctionsText = '';
+    if (corrections.length) {
+      correctionsText = `\nLEARNED RULES FROM PREVIOUS SCANS OF THIS SET:\n${corrections.map(c => `  • ${c.lesson}`).join('\n')}\n`;
+    }
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': getApiKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 2048,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+            { type: 'text', text: `You are scanning baseball cards and matching them to a collector's spreadsheet. Your job is to read text from the cards in the photo and match each one to an entry in the checklist below.
+
+COLLECTOR'S CHECKLIST — you may ONLY identify players from this list:
+${rosterLines || '(no roster loaded)'}
+${setInfoText}${correctionsText}
+PHOTO LAYOUT:
+- FACE-DOWN cards (backs showing): read the card number and player name directly off the back. Card numbers are always on the back. This is your most reliable source.
+- FACE-UP cards (fronts showing): read the player name from the front. Identify the parallel treatment visually (border color, foil finish, etc.).
+
+For EACH card (or stack of identical cards) you can see, return:
+1. cardNumber — read from back if face-down, from front corners if face-up. "unknown" only if truly unreadable.
+2. playerName — must match a name from the CHECKLIST. If you can read a name but it's not in the list, still report it with confidence "low".
+3. teamName — as printed on card.
+4. facing — "back" or "front"
+5. parallel — visual treatment on face-up cards. CRITICAL DISTINCTION: base set foilboard parallels (Pink, Gold, Blue, Green, Purple, Red, Orange, Silver borders; Chrome, Refractor, Foil, Sparkle finishes) ONLY appear on BASE SET cards. INSERT cards (Own the Game, Fan Favorites, Nicknames, etc.) are entirely separate products with their own unique designs — they do NOT carry base set foilboard parallels. If you see a Pink Border treatment on what appears to be an insert card, you are likely looking at the base card version of that player, not the insert. Distinguish by card design: base cards use the 1961/1970/1994 retro Topps designs; insert cards have completely different layouts. Return null for plain base cards with no parallel treatment.
+6. serial — fraction like "23/50" or "/99". null if absent.
+7. count — total copies in stack. Look for offset edges, fanned card corners, extra borders peeking out. Count every copy.
+8. confidence — "high" if you can clearly read the full player name AND it matches the checklist. "medium" if the read is partial or uncertain. "low" if you're inferring or guessing.
+9. inHolder — true if the card appears to be inside a sleeve, penny sleeve, top loader, magnetic case, or any protective holder (look for plastic edges, reflections on a clear surface, or the card visible behind protective material). false otherwise.
+
+Return ONLY valid JSON array, no markdown. One entry per unique card or stack:
+[
+  {"cardNumber":"207","playerName":"Jackson Merrill","teamName":"San Diego Padres","facing":"back","parallel":null,"serial":null,"count":1,"confidence":"high","inHolder":false},
+  {"cardNumber":"unknown","playerName":"Fernando Tatis Jr.","teamName":"San Diego Padres","facing":"front","parallel":"Pink Border","serial":null,"count":2,"confidence":"high","inHolder":false},
+  {"cardNumber":"156","playerName":"Jackson Merrill","teamName":"San Diego Padres","facing":"front","parallel":null,"serial":null,"count":1,"confidence":"low","inHolder":true}
+]
+
+CRITICAL RULES:
+- ONLY report players from the CHECKLIST. Do not identify anyone not on that list, even if you recognize them from your knowledge of baseball card sets.
+- If you cannot clearly read a player name, report what you can see with confidence "low" — do not fill in from memory.
+- Every identification must be based on text or visuals you can actually see in this image, not set knowledge.
+- If a card is inside a sleeve, top loader, or holder, STILL report it — set inHolder: true and confidence: "low". Do not skip it. The collector will be prompted to retake it outside the holder.
+- Each physical card or stack = exactly ONE entry. Never duplicate.` }
+          ]
+        }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    }
+
+    const result = await resp.json();
+    const text = result.content[0].text.trim();
+
+    // Parse JSON robustly
+    let cards;
+    try {
+      // Strip markdown code blocks if present
+      const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+      cards = JSON.parse(clean);
+    } catch(e) {
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) cards = JSON.parse(match[0]);
+      else throw new Error('Could not parse card data from response');
+    }
+
+    // Track which sheet rows have already been claimed in this batch so
+    // multiple cards from the same player route to different rows.
+    const claimedRows = new Set();
+    identifiedCards = cards.map(rawCard => {
+      const { match, method, allByName } = findCard(rawCard.cardNumber, rawCard.playerName, rawCard.parallel, claimedRows);
+      if (match) claimedRows.add(match.rowNum);
+
+      // Resolve card number without mutating the raw object from Claude
+      const cardNumber = (match && method === 'name' && (!rawCard.cardNumber || rawCard.cardNumber.toLowerCase() === 'unknown'))
+        ? (match.data[COL.NUM] || '?').toString().trim()
+        : rawCard.cardNumber;
+
+      // Team mismatch check: if matched by name and Claude's team ≠ sheet team,
+      // it's very likely a hallucination — reject the match entirely.
+      let validatedMatch = match;
+      let validatedMethod = method;
+      if (match && method === 'name') {
+        const sheetTeam = normalizeName(match.data[COL.TEAM] || '');
+        const detectedTeam = normalizeName(rawCard.teamName || '');
+        if (sheetTeam && detectedTeam) {
+          // Teams must share at least one significant word (city name or mascot)
+          const sheetWords = sheetTeam.split(' ').filter(w => w.length > 3);
+          const detectedWords = detectedTeam.split(' ').filter(w => w.length > 3);
+          const teamsAlign = sheetWords.some(w => detectedWords.includes(w));
+          if (!teamsAlign) {
+            // Team mismatch = hallucination, drop this match
+            validatedMatch = null;
+            validatedMethod = null;
+          }
+        }
+      }
+
+      // Build a fresh mutable object — never mutate rawCard directly
+      const confLevel = (rawCard.confidence || 'low').toLowerCase();
+      const isInHolder = !!rawCard.inHolder;
+      const card = {
+        ...rawCard,
+        cardNumber,
+        match: validatedMatch,
+        matchMethod: validatedMethod,
+        multipleRowsExist: allByName.length > 1,
+        confirmed: false,
+        skipped: false,
+        note: '',
+        confidenceLevel: confLevel,
+        lowConfidence: confLevel !== 'high' || isInHolder,
+        manuallyIncluded: false,
+        inHolder: isInHolder
+      };
+      card.note = buildDefaultNote(card, validatedMatch);
+      return card;
+    });
+
+    // Deduplicate: if two identified cards map to the same sheet row,
+    // only merge them if they are the SAME card (same card number = true stack).
+    // If different card numbers map to the same row, it's a matching conflict —
+    // keep both visible and clear the secondary's match so it shows as unmatched.
+    const rowPrimary = {}; // rowNum → index of primary entry
+
+    function cardNumKey(n) {
+      return (n || 'unknown').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    identifiedCards.forEach((card, idx) => {
+      if (!card.match) return;
+      const rn = card.match.rowNum;
+      if (rowPrimary[rn] === undefined) {
+        rowPrimary[rn] = idx;
+      } else {
+        const primaryIdx = rowPrimary[rn];
+        const primary = identifiedCards[primaryIdx];
+
+        // Only auto-merge if card numbers are the same (true duplicate stack)
+        const pNum = cardNumKey(primary.cardNumber);
+        const cNum = cardNumKey(card.cardNumber);
+        const sameCard = pNum === cNum || pNum === 'unknown' || cNum === 'unknown' || pNum === '?' || cNum === '?';
+
+        if (sameCard) {
+          // True stack — merge note contribution into primary
+          if (card.parallel || card.serial || (card.count || 1) > 1) {
+            const mergedCard = { ...card, match: primary.match };
+            const tempMatch = { ...primary.match, data: [...primary.match.data] };
+            tempMatch.data[COL.NOTE] = primary.note;
+            tempMatch.data[COL.IN_COLL] = 'x';
+            primary.note = buildDefaultNote(mergedCard, tempMatch);
+          } else {
+            const tempMatch = { ...primary.match, data: [...primary.match.data] };
+            tempMatch.data[COL.NOTE] = primary.note;
+            tempMatch.data[COL.IN_COLL] = 'x';
+            const baseCard = { cardNumber: card.cardNumber, count: card.count || 1, parallel: null, serial: null };
+            primary.note = buildDefaultNote(baseCard, tempMatch);
+          }
+          card.mergedInto = primaryIdx;
+          card.skipped = true;
+        } else {
+          // Different card numbers → different cards that both matched the same row.
+          // This is a matching error. Clear the secondary's match so it shows as
+          // "not found" with the add-to-sheet form, rather than silently merging.
+          card.match = null;
+          card.matchMethod = null;
+          card.rowConflict = true; // flag so we can show a helpful message
+        }
+      }
+    });
+
+    renderResults();
+    goScanStep(4);
+
+  } catch(e) {
+    console.error(e);
+    showToast('Scan failed: ' + e.message, 'error');
+    goScanStep(2);
+  }
+}
+
+// ─── NOTE LOGIC ───────────────────────────────────────────────────────────────
+
+// Rarity score: lower = rarer = appears first in note string.
+// Serialized cards sort by denominator (e.g. /1 < /10 < /50).
+// Non-serialized parallels go after serialized. Base copies (x2, x3…) go last.
+function rarityScore(entry) {
+  entry = (entry || '').trim();
+  // Base counts (x2, x10, Regular x13) → always last
+  if (/^x\d+$/i.test(entry) || /^regular\s+x\d+$/i.test(entry)) return 10000000;
+  // Has a serial fraction "xxx/yyy" → sort by denominator ascending
+  const serialMatch = entry.match(/\/(\d+)/);
+  if (serialMatch) return parseInt(serialMatch[1]);
+  // Non-serialized parallel → after serialized, before base
+  return 1000000;
+}
+
+function parseNoteEntries(note) {
+  if (!note || !note.trim()) return [];
+  // Split on commas OR " and " (Seth uses both as separators in older notes)
+  return note.split(/,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+}
+
+// Recognize base copy count entries: "x13", "Regular x13", "regular x5"
+function isBaseCount(entry) {
+  return /^x\d+$/i.test(entry) || /^regular\s+x\d+$/i.test(entry);
+}
+
+function extractBaseCount(entry) {
+  const m = entry.match(/x(\d+)$/i);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function makeBaseCountEntry(count) {
+  // Prefix is applied later based on whether parallels exist in the full note
+  return `x${count}`;
+}
+
+function buildDefaultNote(card, match) {
+  const alreadyHave = match && (match.data[COL.IN_COLL] || '').trim() === 'x';
+  const existingNote = match ? (match.data[COL.NOTE] || '').trim() : '';
+  const count = card.count || 1;
+
+  // What this card contributes: e.g. "Gold Refractor 23/50" or "" for base
+  const parts = [];
+  if (card.parallel) parts.push(card.parallel);
+  if (card.serial) parts.push(card.serial);
+  const thisEntry = parts.join(' ');
+
+  if (!alreadyHave) {
+    // Brand new card — first time logging it
+    if (!thisEntry) return count > 1 ? `x${count}` : '';
+    return count > 1 ? `x${count} ${thisEntry}` : thisEntry;
+  }
+
+  // Already have — accumulate into existing note
+  let entries = parseNoteEntries(existingNote);
+
+  if (!thisEntry) {
+    // Adding base copy/copies
+    const baseIdx = entries.findIndex(e => isBaseCount(e));
+    if (baseIdx >= 0) {
+      // Increment existing base count, preserving "Regular" prefix if present
+      const n = extractBaseCount(entries[baseIdx]);
+      entries[baseIdx] = makeBaseCountEntry(n + count);
+    } else {
+      // First time noting duplicates — existing unmarked copy counts as 1
+      entries.push(`x${1 + count}`);
+    }
+  } else {
+    // Adding a parallel (with or without serial)
+    const existingIdx = card.parallel
+      ? entries.findIndex(e => e.toLowerCase().includes(card.parallel.toLowerCase()))
+      : -1;
+
+    if (existingIdx >= 0) {
+      // Same parallel already noted — increment its count
+      const existing = entries[existingIdx];
+      const xMatch = existing.match(/^x(\d+)\s+/i);
+      const prevCount = xMatch ? parseInt(xMatch[1]) : 1;
+      const existingContent = xMatch ? existing.slice(xMatch[0].length).trim() : existing.trim();
+      // Prefer whichever entry has more info (e.g. preserve serial like /75 if new entry lacks it)
+      const useContent = (thisEntry.match(/\/\d+/) || !existingContent.match(/\/\d+/))
+        ? thisEntry : existingContent;
+      entries[existingIdx] = `x${prevCount + count} ${useContent}`;
+    } else {
+      // New parallel variant
+      entries.push(count > 1 ? `x${count} ${thisEntry}` : thisEntry);
+    }
+  }
+
+  // Apply Seth's convention:
+  // - parallels present → base count uses "Regular x\d+" prefix
+  // - base only → bare "x\d+" with no prefix
+  const hasParallels = entries.some(e => !isBaseCount(e));
+  entries = entries.map(e => {
+    if (!isBaseCount(e)) return e;
+    const n = extractBaseCount(e);
+    return hasParallels ? `Regular x${n}` : `x${n}`;
+  });
+
+  // Sort rarest first, base copies last
+  entries.sort((a, b) => rarityScore(a) - rarityScore(b));
+  return entries.filter(e => e && e.trim()).join(', ');
+}
+
+function renderResults() {
+  const list = document.getElementById('card-results-list');
+  // Exclude merged (deduped) entries from counts
+  const visible = identifiedCards.filter(c => c.mergedInto === undefined);
+  const matched = visible.filter(c => c.match && !c.skipped).length;
+  const total = visible.length;
+  const highConf = visible.filter(c => c.match && !c.skipped && !c.lowConfidence).length;
+  const lowConfCount = visible.filter(c => c.match && !c.skipped && c.lowConfidence && !c.manuallyIncluded).length;
+  const badge = document.getElementById('results-badge');
+  badge.textContent = `${matched}/${total} matched${lowConfCount > 0 ? ` · ${lowConfCount} flagged` : ''}`;
+  badge.className = `badge ${matched > 0 ? 'green' : 'red'}`;
+
+  // Write button counts only high-confidence + manually-included
+  const writeCount = visible.filter(c => c.match && !c.skipped && (!c.lowConfidence || c.manuallyIncluded)).length;
+  const flaggedCount = visible.filter(c => c.match && !c.skipped && c.lowConfidence && !c.manuallyIncluded).length;
+  const writeBtn = document.getElementById('write-btn');
+  if (writeBtn) {
+    if (writeCount === 0 && flaggedCount > 0) {
+      writeBtn.textContent = `⚠️ ${flaggedCount} card${flaggedCount !== 1 ? 's' : ''} flagged — edit notes or tap "Include anyway"`;
+      writeBtn.style.background = 'var(--bg3)';
+      writeBtn.style.color = 'var(--yellow)';
+    } else {
+      writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
+      writeBtn.style.background = '';
+      writeBtn.style.color = '';
+    }
+  }
+
+  list.innerHTML = identifiedCards.map((card, idx) => {
+    // Hide entries merged into another (deduped same-row matches)
+    if (card.mergedInto !== undefined) return '';
+
+    const hasMatch = !!card.match;
+    const alreadyHave = hasMatch && (card.match.data[COL.IN_COLL] || '').trim() === 'x';
+    const existingNote = hasMatch ? (card.match.data[COL.NOTE] || '').trim() : '';
+    const sheetPlayer = hasMatch ? (card.match.data[COL.PLAYER] || '').trim() : '';
+    const count = card.count || 1;
+    const byName = card.matchMethod === 'name';
+
+    const parallelTag = card.parallel
+      ? `<span class="tag">⚡ ${card.parallel}${card.serial ? ' · ' + card.serial : ''}</span>`
+      : (card.serial ? `<span class="tag">🔢 ${card.serial}</span>` : '');
+    const countBadge = count > 1
+      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);">×${count}</span>`
+      : '';
+    const nameMatchBadge = byName
+      ? `<span class="tag" style="background:rgba(59,130,246,0.15);color:var(--blue);font-size:10px;">matched by name</span>`
+      : '';
+    const multiWarnBadge = card.multipleRowsExist && byName
+      ? `<span class="tag" style="background:rgba(245,158,11,0.15);color:var(--yellow);font-size:10px;">⚠ multiple rows</span>`
+      : '';
+
+    if (!hasMatch) {
+      const ctx = getSetContext();
+      const defaultType = card.parallel ? card.parallel : 'Base';
+      const defaultNote = card.parallel ? (card.serial ? `${card.parallel} ${card.serial}` : card.parallel) : (count > 1 ? `x${count}` : '');
+      return `
+      <div class="card-result not-found" id="card-${idx}">
+        <div class="card-result-header">
+          <div class="card-num">#${card.cardNumber || '?'}</div>
+          <div class="card-info">
+            <div class="player">${card.playerName || '—'} ${countBadge}</div>
+            <div class="meta">${card.teamName || ''} ${parallelTag}</div>
+          </div>
+          <div class="card-status">❓</div>
+        </div>
+        <div class="card-nomatch">${card.rowConflict ? '⚠️ Different card, same player — another card already matched this player\'s row. Different card number = different row. Edit & add, or skip.' : 'Not in sheet — edit details &amp; add, or skip'}</div>
+        <div class="add-card-form" id="add-form-${idx}">
+          <div class="add-form-grid">
+            <div>
+              <label class="add-form-label">Player Name</label>
+              <input class="add-form-input" type="text" id="add-player-${idx}" value="${escHtml(card.playerName || '')}">
+            </div>
+            <div>
+              <label class="add-form-label">Card #</label>
+              <input class="add-form-input" type="text" id="add-num-${idx}" value="${escHtml(card.cardNumber !== 'unknown' ? (card.cardNumber || '') : '')}">
+            </div>
+          </div>
+          <div class="add-form-grid">
+            <div>
+              <label class="add-form-label">Team</label>
+              <input class="add-form-input" type="text" id="add-team-${idx}" value="${escHtml(card.teamName || '')}">
+            </div>
+            <div>
+              <label class="add-form-label">Type</label>
+              <input class="add-form-input" type="text" id="add-type-${idx}" value="${escHtml(defaultType)}" placeholder="Base">
+            </div>
+          </div>
+          <div class="add-form-grid" style="grid-template-columns:1fr 1fr">
+            <div>
+              <label class="add-form-label">Year</label>
+              <input class="add-form-input" type="text" id="add-year-${idx}" value="${escHtml(ctx.year)}" placeholder="Year">
+            </div>
+            <div>
+              <label class="add-form-label">Series</label>
+              <input class="add-form-input" type="text" id="add-series-${idx}" value="${escHtml(ctx.series)}" placeholder="Series">
+            </div>
+          </div>
+          <div>
+            <label class="add-form-label">Note (e.g. "Gold Refractor 23/50", "x2")</label>
+            <input class="add-form-input" type="text" id="add-note-${idx}" value="${escHtml(defaultNote)}" placeholder="Optional">
+          </div>
+          <div class="add-form-actions">
+            <button class="act-btn confirm" id="add-btn-${idx}" onclick="addNewCard(${idx})">➕ Add to Sheet</button>
+            <button class="act-btn skip" onclick="skipCard(${idx})">Skip</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    const isNew = !alreadyHave;
+    const statusIcon = isNew ? '🆕' : '📦';
+    const noteLabel = isNew
+      ? 'Note (leave blank for base card):'
+      : `Was: "${existingNote || 'blank'}" → Will become:`;
+
+    // Variation/SP warning: show if set has known variations and this card has no detected parallel
+    const knownVars = [...(window._setInfo?.variations||[]), ...(window._setInfo?.short_prints||[])];
+    const variationWarn = knownVars.length > 0 && !card.parallel
+      ? `<div class="card-variation-warn">
+          <span>⚠️ Variations exist: ${knownVars.map(v => v.name).join(', ')}</span>
+          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Close-up</button>
+        </div>`
+      : '';
+
+    // Holder banner takes priority; otherwise show generic low-conf banner
+    const holderBanner = card.inHolder
+      ? `<div class="low-conf-banner">
+          <span>🛡️ Card is in a sleeve/holder — harder to read accurately</span>
+          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retake outside holder</button>
+        </div>`
+      : '';
+    const confBanner = (!card.inHolder && card.lowConfidence)
+      ? `<div class="low-conf-banner">
+          <span>⚠️ ${card.confidenceLevel === 'medium' ? 'Medium' : 'Low'} confidence — verify before writing</span>
+          <button class="include-btn" id="inc-btn-${idx}" onclick="includeCard(${idx})">Include anyway</button>
+        </div>`
+      : '';
+
+    return `
+    <div class="card-result${card.lowConfidence ? ' low-conf' : ''}" id="card-${idx}">
+      <div class="card-result-header">
+        <div class="card-num">#${card.cardNumber}</div>
+        <div class="card-info">
+          <div class="player">${sheetPlayer || card.playerName} ${countBadge}</div>
+          <div class="meta">${card.teamName || ''} ${parallelTag} ${nameMatchBadge} ${multiWarnBadge}</div>
+        </div>
+        <div class="card-status">${statusIcon}</div>
+      </div>
+      <div class="${isNew ? 'card-match' : 'already-have'}">
+        ${isNew
+          ? `✓ Row ${card.match.rowNum} — new card${byName ? ' (verify row is correct)' : ''}`
+          : `📦 Row ${card.match.rowNum} — duplicate${existingNote ? ' · current: ' + existingNote : ''}${byName ? ' · verify row' : ''}`}
+      </div>
+      ${holderBanner}
+      ${confBanner}
+      ${variationWarn}
+      <div class="count-row">
+        <span class="count-label">Copies in this scan:</span>
+        <div class="count-controls">
+          <button class="adj-btn" onclick="adjustCount(${idx}, -1)">−</button>
+          <span id="count-display-${idx}" class="count-val">${count}</span>
+          <button class="adj-btn" onclick="adjustCount(${idx}, 1)">+</button>
+        </div>
+      </div>
+      <div style="padding:8px 16px 12px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">${noteLabel}</div>
+        <div style="display:flex;gap:6px;align-items:flex-start;">
+          <textarea class="note-input" id="note-${idx}" placeholder="e.g. Gold Refractor 23/50" style="flex:1;" oninput="onNoteEdited(${idx})">${escHtml(card.note || '')}</textarea>
+          <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="flex-shrink:0;padding:8px 10px;font-size:12px;">Skip</button></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Auto-include a card the moment the user manually edits its note —
+// they clearly want it written, regardless of confidence level.
+function onNoteEdited(idx) {
+  if (!identifiedCards[idx]) return;
+  if (!identifiedCards[idx].manuallyIncluded) {
+    includeCard(idx);
+  }
+}
+
+function adjustCount(idx, delta) {
+  const card = identifiedCards[idx];
+  const newCount = Math.max(1, (card.count || 1) + delta);
+  if (newCount === (card.count || 1)) return;
+  card.count = newCount;
+  // Rebuild note with new count
+  card.note = buildDefaultNote(card, card.match);
+  // Update display
+  const display = document.getElementById(`count-display-${idx}`);
+  if (display) display.textContent = newCount;
+  const noteEl = document.getElementById(`note-${idx}`);
+  if (noteEl) noteEl.value = card.note || '';
+}
+
+async function relookupSetInfo() {
+  const id = document.getElementById('set-select').value;
+  if (!id) return;
+  const sheetName = currentSheetName || allSheets.find(s => s.id === id)?.name || 'Set';
+  // Bust the cache and re-fetch
+  const cacheKey = `cc_setinfo_${sheetName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  localStorage.removeItem(cacheKey);
+  window._setInfo = null;
+  const label = document.getElementById('scan-set-label');
+  const btn = document.getElementById('relookup-btn');
+  if (btn) btn.style.opacity = '0.3';
+  label.textContent = '🌐 Re-fetching set info…';
+  await loadSetInfo(sheetName);
+  updateSetLabel(sheetName, label);
+  if (btn) btn.style.opacity = '0.7';
+  const src = window._setInfo?._source === 'web' ? 'Web' : 'Claude memory';
+  const parallelCount = window._setInfo?.parallels?.length || 0;
+  showToast(parallelCount > 0 ? `${parallelCount} parallels found (${src})` : 'No parallel data found', parallelCount > 0 ? 'success' : '');
+}
+
+function updateSetLabel(sheetName, labelEl) {
+  const el = labelEl || document.getElementById('scan-set-label');
+  if (!el) return;
+  const parallelCount = window._setInfo?.parallels?.length || 0;
+  const varCount = (window._setInfo?.variations?.length || 0) + (window._setInfo?.short_prints?.length || 0);
+  const isWeb = window._setInfo?._source === 'web';
+  let pill = '';
+  if (parallelCount > 0 || varCount > 0) {
+    const parts = [];
+    if (parallelCount > 0) parts.push(`${parallelCount} parallel${parallelCount !== 1 ? 's' : ''}`);
+    if (varCount > 0) parts.push(`${varCount} variation${varCount !== 1 ? 's' : ''}`);
+    pill = `<span class="set-info-pill">${isWeb ? '🌐' : '🧠'} ${parts.join(' · ')}</span>`;
+  }
+  el.innerHTML = `📊 ${sheetName}${pill}`;
+}
+
+function includeCard(idx) {
+  identifiedCards[idx].manuallyIncluded = true;
+  const btn = document.getElementById(`inc-btn-${idx}`);
+  if (btn) { btn.textContent = '✓ Included'; btn.classList.add('included'); btn.onclick = null; }
+  const el = document.getElementById(`card-${idx}`);
+  if (el) el.classList.remove('low-conf');
+  // Update write button count
+  const writeCount = identifiedCards.filter(c => c.match && !c.skipped && c.mergedInto === undefined && (!c.lowConfidence || c.manuallyIncluded)).length;
+  const writeBtn = document.getElementById('write-btn');
+  if (writeBtn) writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
+}
+
+function skipCard(idx) {
+  identifiedCards[idx].skipped = true;
+  const el = document.getElementById(`card-${idx}`);
+  el.classList.add('rejected');
+  const skipBtn = document.getElementById(`skip-btn-${idx}`);
+  if (skipBtn) { skipBtn.textContent = '✓ Skipped'; skipBtn.disabled = true; skipBtn.onclick = null; }
+  const noteInput = document.getElementById(`note-${idx}`);
+  if (noteInput) noteInput.disabled = true;
+  // Update write button count
+  const remaining = identifiedCards.filter(c => c.match && !c.skipped).length;
+  const writeBtn = document.getElementById('write-btn');
+  if (writeBtn) writeBtn.textContent = `✓ Write ${remaining} Card${remaining !== 1 ? 's' : ''} to Sheet`;
+}
+
+async function writeChanges() {
+  const toWrite = identifiedCards.filter(c => c.match && !c.skipped && !c.confirmed && (!c.lowConfidence || c.manuallyIncluded));
+  if (!toWrite.length) { showToast('Nothing to write — flagged cards need "Include anyway" first', ''); return; }
+
+  const btn = document.getElementById('write-btn');
+  btn.textContent = 'Writing…';
+  btn.disabled = true;
+
+  let successCount = 0;
+  let errorCount = 0;
+  const writtenCards = []; // for corrections system
+
+  for (let i = 0; i < identifiedCards.length; i++) {
+    const card = identifiedCards[i];
+    if (!card.match || card.skipped || card.confirmed || (card.lowConfidence && !card.manuallyIncluded)) continue;
+    const noteEl = document.getElementById(`note-${i}`);
+    const finalNote = noteEl ? noteEl.value.trim() : card.note || '';
+    const initialNote = card.note || ''; // Claude's auto-built note
+    const alreadyCollected = (card.match.data[COL.IN_COLL] || '').trim() === 'x';
+    try {
+      await markCardCollected(card.match.rowNum, finalNote, alreadyCollected);
+      card.confirmed = true;
+      const el = document.getElementById(`card-${i}`);
+      if (el) el.classList.add('confirmed');
+      successCount++;
+      writtenCards.push({ card, initialNote, finalNote });
+    } catch(e) {
+      errorCount++;
+      showToast(`Error on #${card.cardNumber}: ${e.message}`, 'error');
+    }
+    await sleep(150);
+  }
+
+  confirmedCount += successCount;
+
+  if (errorCount === 0) {
+    checkForCorrections(writtenCards);
+  } else {
+    btn.textContent = `Retry (${errorCount} failed)`;
+    btn.disabled = false;
+    showToast(`${successCount} written, ${errorCount} failed`, 'error');
+  }
+}
+
+function showSuccess() {
+  const total = identifiedCards.filter(c => c.confirmed).length;
+  document.getElementById('success-title').textContent = `${total} Card${total !== 1 ? 's' : ''} Logged! 🎉`;
+  const setName = document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || 'your set';
+  document.getElementById('success-msg').textContent = `Written to ${setName}`;
+  goScanStep(5);
+}
+
+function resetScan() {
+  // Clear scan state but keep current set loaded
+  identifiedCards = [];
+  confirmedCount = 0;
+  window._photoData = null;
+  window._photoMime = null;
+  const preview = document.getElementById('photo-preview');
+  preview.src = '';
+  preview.style.display = 'none';
+  document.getElementById('camera-tap-area').style.display = 'block';
+  document.getElementById('photo-actions').classList.remove('visible');
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('file-input').value = '';
+  document.getElementById('img-size-label').textContent = '';
+  goScanStep(2); // Stay on same set, just retake photo
+}
+
+function goScanStep(n) {
+  document.querySelectorAll('.scan-step').forEach(el => el.classList.remove('active'));
+  document.getElementById(`scan-step-${n}`)?.classList.add('active');
+}
+
+// ─── ADD NEW CARD ─────────────────────────────────────────────────────────────
+async function addNewCard(idx) {
+  const card = identifiedCards[idx];
+  const btn = document.getElementById(`add-btn-${idx}`);
+  if (btn) { btn.textContent = 'Adding…'; btn.disabled = true; }
+
+  const playerName = document.getElementById(`add-player-${idx}`)?.value.trim() || '';
+  const cardNum    = document.getElementById(`add-num-${idx}`)?.value.trim() || '';
+  const team       = document.getElementById(`add-team-${idx}`)?.value.trim() || '';
+  const type       = document.getElementById(`add-type-${idx}`)?.value.trim() || 'Base';
+  const year       = document.getElementById(`add-year-${idx}`)?.value.trim() || '';
+  const series     = document.getElementById(`add-series-${idx}`)?.value.trim() || '';
+  const note       = document.getElementById(`add-note-${idx}`)?.value.trim() || '';
+  const ctx        = getSetContext();
+
+  if (!playerName) { showToast('Player name required', 'error'); if (btn) { btn.textContent = '➕ Add to Sheet'; btn.disabled = false; } return; }
+
+  try {
+    // Find next empty row in Master (append after last occupied row)
+    const rowRes = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${currentSheetId}/values/A:A`);
+    const rowData = await rowRes.json();
+    const nextRow = (rowData.values?.length || 0) + 1;
+
+    const newRow = [
+      'x',                       // In Collection
+      year || ctx.year,          // Year
+      ctx.brand,                 // Brand
+      series || ctx.series,      // Series
+      type,                      // Type
+      cardNum,                   // Number
+      playerName,                // Player
+      team,                      // Team
+      '',                        // Card Info
+      '',                        // Sell Price
+      '',                        // Purchase Price
+      note                       // Card Note
+    ];
+
+    const writeRes = await gFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${currentSheetId}/values/A${nextRow}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [newRow] })
+      }
+    );
+    if (!writeRes.ok) {
+      const err = await writeRes.json().catch(()=>({}));
+      throw new Error(err.error?.message || `Write failed: ${writeRes.status}`);
+    }
+
+    card.confirmed = true;
+    card.addedAsNew = true;
+    const el = document.getElementById(`card-${idx}`);
+    if (el) {
+      el.classList.remove('not-found');
+      el.classList.add('confirmed');
+      el.innerHTML = `
+        <div class="card-result-header">
+          <div class="card-num">#${escHtml(cardNum || '?')}</div>
+          <div class="card-info">
+            <div class="player">${escHtml(playerName)}</div>
+            <div class="meta">${escHtml(team)}${note ? ' · ' + escHtml(note) : ''}</div>
+          </div>
+          <div class="card-status">✅</div>
+        </div>
+        <div class="card-match">➕ Added as new row ${nextRow} in Master</div>`;
+    }
+    showToast(`${playerName} added to sheet!`, 'success');
+  } catch(e) {
+    if (btn) { btn.textContent = '➕ Add to Sheet'; btn.disabled = false; }
+    showToast('Failed to add: ' + e.message, 'error');
+  }
+}
+
+// ─── CLOSE-UP WORKFLOW ────────────────────────────────────────────────────────
+let _closeupCardIdx = null;
+
+function takeCloseup(idx) {
+  _closeupCardIdx = idx;
+  document.getElementById('closeup-input').value = '';
+  document.getElementById('closeup-input').click();
+}
+
+async function onCloseupSelected(evt) {
+  const file = evt.target.files[0];
+  if (!file || _closeupCardIdx === null) return;
+  const idx = _closeupCardIdx;
+  const card = identifiedCards[idx];
+  if (!card) return;
+
+  const el = document.getElementById(`card-${idx}`);
+  const warnEl = el?.querySelector('.card-variation-warn');
+  if (warnEl) warnEl.innerHTML = '<span>🔍 Analyzing close-up…</span>';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const compressed = await compressImage(e.target.result, 1568, 0.9);
+      const base64 = compressed.split(',')[1];
+      const varList = [...(window._setInfo?.variations||[]), ...(window._setInfo?.short_prints||[])];
+      const varContext = varList.length
+        ? `Known variations for this set:\n${varList.map(v => `  • ${v.name}${v.back_code ? ' [back code: ' + v.back_code + ']' : ''}: ${v.how_to_spot}`).join('\n')}`
+        : 'Look for any reference codes or variation indicators.';
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': getApiKey(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: CLAUDE_MODEL,
+          max_tokens: 400,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+              { type: 'text', text: `This is a close-up of a baseball card for ${card.playerName || 'unknown player'} from the set "${document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || ''}".
+
+${varContext}
+
+Look carefully at this card image and tell me:
+1. Is this a base card or a variation/SP?
+2. Can you see any reference codes (like V1, V2, SP, SSP, etc.) — if so, where and what do they say?
+3. Any other identifying features (photo, uniform, design differences)?
+
+Return ONLY valid JSON:
+{"verdict": "base|variation|sp|unknown", "code": "V1 or null", "description": "brief description of what you see", "parallel": "parallel name if visible or null"}` }
+            ]
+          }]
+        })
+      });
+
+      if (!resp.ok) throw new Error(`API ${resp.status}`);
+      const result = await resp.json();
+      const text = result.content[0].text.trim().replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+      let analysis;
+      try { analysis = JSON.parse(text); } catch(e) { throw new Error('Could not parse response'); }
+
+      // Update the variation warning area with findings
+      if (warnEl) {
+        const verdictColor = analysis.verdict === 'base' ? 'var(--green)' : 'var(--yellow)';
+        const icon = analysis.verdict === 'base' ? '✅' : analysis.verdict === 'variation' ? '⚠️' : analysis.verdict === 'sp' ? '🔥' : '❓';
+        warnEl.style.color = verdictColor;
+        warnEl.innerHTML = `<span>${icon} Close-up: ${analysis.verdict.toUpperCase()}${analysis.code ? ' [' + analysis.code + ']' : ''} — ${analysis.description}</span>`;
+        // If a parallel was detected, update the note
+        if (analysis.parallel && analysis.verdict !== 'base') {
+          const noteInput = document.getElementById(`note-${idx}`);
+          if (noteInput && !noteInput.value.toLowerCase().includes(analysis.parallel.toLowerCase())) {
+            const count = card.count || 1;
+            noteInput.value = (count > 1 ? `x${count} ` : '') + analysis.parallel + (analysis.code ? ' ' + analysis.code : '');
+          }
+        }
+      }
+    } catch(e) {
+      if (warnEl) warnEl.innerHTML = `<span>⚠️ Close-up failed: ${e.message}</span><button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retry</button>`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─── NEW SET ──────────────────────────────────────────────────────────────────
+function onXlsxSelected(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const sheets = {};
+      wb.SheetNames.forEach(n => {
+        sheets[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, defval:null});
+      });
+      const hasMaster = wb.SheetNames.includes('Master');
+      xlsxWorkbook = { sheets, sheetNames: wb.SheetNames, hasMaster };
+
+      // Parse filename → Year / Brand / Series
+      const name = file.name.replace(/\.(xlsx?)$/i,'');
+      const parts = name.replace(/-/g,' ').split(/\s+/);
+      const yearMatch = parts.find(p => /^20\d{2}$/.test(p));
+      const yearIdx = yearMatch ? parts.indexOf(yearMatch) : 0;
+      document.getElementById('ns-year').value = yearMatch || '';
+      document.getElementById('ns-brand').value = parts[yearIdx + 1] || '';
+      document.getElementById('ns-series').value = parts.slice(yearIdx + 2).filter(p => !/^(baseball|checklist)$/i.test(p)).join(' ');
+      updateSheetName();
+
+      document.getElementById('newset-form').style.display = 'block';
+      document.getElementById('newset-result').style.display = 'none';
+      document.querySelector('.upload-area').style.display = 'none';
+      showToast(`Loaded ${hasMaster ? 'older' : 'newer'} Beckett format — ${wb.SheetNames.join(', ')}`);
+    } catch(err) {
+      showToast('Could not read XLSX: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Build Card Caddy rows from older Beckett format (has Master tab)
+// Master columns: [Type, Number, Player, Team, RC-flag, ...]
+function _buildRowsOlderFormat(sheets, year, brand, series) {
+  const rows = sheets['Master'] || [];
+  const out = [];
+  for (const row of rows) {
+    const type   = row[0] != null ? String(row[0]).trim() : '';
+    const num    = row[1];
+    const player = row[2] != null ? String(row[2]).trim() : '';
+    const team   = row[3] != null ? String(row[3]).trim() : '';
+    const rcFlag = row[4] != null ? String(row[4]).trim().toUpperCase() : '';
+
+    const numStr = num != null ? String(num).trim() : '';
+    const isCard = numStr !== '' && !isNaN(numStr.replace(/[^0-9]/g,'')) && player.length > 1;
+
+    if (isCard) {
+      const cardType = rcFlag === 'RC' ? 'RC' : (type || 'Base');
+      out.push(['', year, brand, series, cardType, numStr, player, team, '', '', '', '']);
+    } else {
+      // Preserve preamble/info row as-is in card columns, blanks in CC columns
+      const hasContent = row.some(c => c != null && String(c).trim().length > 0);
+      if (hasContent) {
+        out.push(['', '', '', '', type, numStr, player, team, '', '', '', '']);
+      } else {
+        out.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+      }
+    }
+  }
+  return out;
+}
+
+// Build Card Caddy rows from newer Beckett format (no Master tab, separate tabs per type)
+// Newer row format: [Number, Player, Team, RC-flag?] with preamble at top
+function _buildRowsNewerFormat(sheets, sheetNames, year, brand, series) {
+  const TYPE_MAP = {
+    'base': 'Base', 'autographs': 'Auto', 'autos': 'Auto',
+    'inserts': 'Insert', 'variations': 'Variation', 'memorabilia': 'Memo',
+    'full checklist': 'Base'
+  };
+  const out = [];
+  const skipTabs = ['teams'];
+  // If we have specific tabs, skip "Full Checklist" (it's a dupe)
+  const hasSpecific = sheetNames.some(n => ['base','autographs','inserts'].includes(n.toLowerCase()));
+  if (hasSpecific) skipTabs.push('full checklist');
+
+  for (const tabName of sheetNames) {
+    if (skipTabs.includes(tabName.toLowerCase())) continue;
+    const rows = sheets[tabName] || [];
+    if (!rows.length) continue;
+    const inferredType = TYPE_MAP[tabName.toLowerCase()] || tabName;
+
+    // Find where card data starts (first row where col0 is a number and col1 is a player name)
+    let dataStart = rows.length;
+    for (let i = 0; i < Math.min(25, rows.length); i++) {
+      const r = rows[i];
+      const n = r[0] != null ? String(r[0]).trim() : '';
+      const p = r[1] != null ? String(r[1]).replace(/,$/,'').trim() : '';
+      if (n !== '' && !isNaN(parseInt(n)) && p.length > 1) { dataStart = i; break; }
+    }
+
+    // Preamble rows
+    for (let i = 0; i < dataStart; i++) {
+      const r = rows[i];
+      const hasContent = r.some(c => c != null && String(c).trim().length > 0);
+      if (hasContent) {
+        const txt = r.map(c => c != null ? String(c).trim() : '').join(' ').trim();
+        out.push(['', '', '', '', inferredType, '', txt, '', '', '', '', '']);
+      } else {
+        out.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+      }
+    }
+
+    // Card rows
+    for (let i = dataStart; i < rows.length; i++) {
+      const r = rows[i];
+      const numStr = r[0] != null ? String(r[0]).trim() : '';
+      const player = r[1] != null ? String(r[1]).replace(/,$/,'').trim() : '';
+      const team   = r[2] != null ? String(r[2]).replace(/,$/,'').trim() : '';
+      const rcFlag = r[3] != null ? String(r[3]).trim().toUpperCase() : '';
+
+      const isCard = numStr !== '' && !isNaN(parseInt(numStr)) && player.length > 1;
+      if (isCard) {
+        const cardType = rcFlag === 'RC' ? 'RC' : inferredType;
+        out.push(['', year, brand, series, cardType, numStr, player, team, '', '', '', '']);
+      } else {
+        const hasContent = r.some(c => c != null && String(c).trim().length > 0);
+        if (hasContent) {
+          const txt = r.map(c => c != null ? String(c).trim() : '').join(' ').trim();
+          out.push(['', '', '', '', inferredType, '', txt, '', '', '', '', '']);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+['ns-year','ns-brand','ns-series'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateSheetName);
+});
+
+function updateSheetName() {
+  const y = document.getElementById('ns-year').value.trim();
+  const b = document.getElementById('ns-brand').value.trim();
+  const s = document.getElementById('ns-series').value.trim();
+  if (y || b || s) {
+    document.getElementById('ns-sheetname').value = [y,b,s,'Baseball-Checklist'].filter(Boolean).join('-');
+  }
+}
+
+async function createNewSet() {
+  if (!xlsxWorkbook) { showToast('No XLSX loaded', 'error'); return; }
+  const title  = document.getElementById('ns-sheetname').value.trim();
+  const year   = document.getElementById('ns-year').value.trim();
+  const brand  = document.getElementById('ns-brand').value.trim();
+  const series = document.getElementById('ns-series').value.trim();
+  if (!title) { showToast('Sheet name required', 'error'); return; }
+
+  const btn = document.querySelector('#newset-screen .btn-primary');
+  btn.textContent = 'Creating…';
+  btn.disabled = true;
+
+  try {
+    const headers = ['In Collection','Year','Brand','Series','Type','Number','Player / Card','Team','Card Info','Sell Price','Purchase Price','Card Note'];
+
+    // Build data rows based on format
+    const dataRows = xlsxWorkbook.hasMaster
+      ? _buildRowsOlderFormat(xlsxWorkbook.sheets, year, brand, series)
+      : _buildRowsNewerFormat(xlsxWorkbook.sheets, xlsxWorkbook.sheetNames, year, brand, series);
+
+    const cardCount = dataRows.filter(r => r[1] === year && r[5] !== '').length;
+    const allRows = [headers, ...dataRows];
+
+    // ── Step 1: Create spreadsheet ──
+    const createResp = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        properties: { title },
+        sheets: [{ properties: { title: 'Master', index: 0 } }]
+      })
+    });
+    if (!createResp.ok) throw new Error(`Create failed: ${createResp.status}`);
+    const created = await createResp.json();
+    newSheetId = created.spreadsheetId;
+    const masterSheetId = created.sheets[0].properties.sheetId;
+
+    // ── Step 2: Write data ──
+    const writeResp = await gFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}/values/Master!A1?valueInputOption=USER_ENTERED`,
+      { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ values: allRows }) }
+    );
+    if (!writeResp.ok) throw new Error(`Write failed: ${writeResp.status}`);
+
+    // ── Step 3: Format (freeze, header style, autofilter, conditional format, column widths) ──
+    await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [
+        // Freeze row 1
+        { updateSheetProperties: {
+            properties: { sheetId: masterSheetId, gridProperties: { frozenRowCount: 1 } },
+            fields: 'gridProperties.frozenRowCount'
+        }},
+        // Bold green header row
+        { repeatCell: {
+            range: { sheetId: masterSheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: { userEnteredFormat: {
+              textFormat: { bold: true, foregroundColor: {red:1,green:1,blue:1} },
+              backgroundColor: { red:0.13, green:0.37, blue:0.18 },
+              horizontalAlignment: 'CENTER'
+            }},
+            fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)'
+        }},
+        // Autofilter on row 1
+        { setBasicFilter: { filter: { range: {
+            sheetId: masterSheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 12
+        }}}},
+        // Green conditional formatting: entire row when col A = "x"
+        { addConditionalFormatRule: { index: 0, rule: {
+            ranges: [{ sheetId: masterSheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 12 }],
+            booleanRule: {
+              condition: { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: '=$A2="x"' }] },
+              format: { backgroundColor: { red:0.204, green:0.659, blue:0.325 } }
+            }
+        }}},
+        // Column widths: A=90, B=55, C=65, D=110, E=80, F=70, G=180, H=160, I=140, J=80, K=100, L=160
+        ...[90,55,65,110,80,70,180,160,140,80,100,160].map((px, i) => ({     updateDimensionProperties: {
+            range: { sheetId: masterSheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i+1 },
+            properties: { pixelSize: px }, fields: 'pixelSize'
+          }
+        }))
+      ]})
+    });
+
+    // ── Step 4: Move to Drive folder ──
+    if (DRIVE_FOLDER_ID) {
+      await gFetch(`https://www.googleapis.com/drive/v3/files/${newSheetId}?addParents=${DRIVE_FOLDER_ID}&removeParents=root&fields=id`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+      });
+    }
+
+    // Show result
+    document.getElementById('ns-sheet-id').textContent = newSheetId;
+    document.getElementById('ns-sheet-url').textContent = `https://docs.google.com/spreadsheets/d/${newSheetId}/edit`;
+    document.getElementById('newset-form').style.display = 'none';
+    document.getElementById('newset-result').style.display = 'block';
+    showToast(`✓ Created with ${cardCount} cards!`, 'success');
+    await loadSheetsList();
+
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  }
+  btn.textContent = 'Create Google Sheet →';
+  btn.disabled = false;
+}
+
+function openSheet() {
+  if (newSheetId) window.open(`https://docs.google.com/spreadsheets/d/${newSheetId}/edit`, '_blank');
+}
+
+function resetNewSet() {
+  xlsxWorkbook = null;
+  newSheetId = null;
+  document.getElementById('xlsx-input').value = '';
+  document.getElementById('newset-form').style.display = 'none';
+  document.getElementById('newset-result').style.display = 'none';
+  document.querySelector('.upload-area').style.display = 'block';
+}
+
+// ─── SET INFO REVIEW ──────────────────────────────────────────────────────────
+function showSetInfoReview(setName) {
+  if (setName) currentSheetName = setName;
+  renderSetInfoReview();
+  goScanStep('1b');
+}
+
+function renderSetInfoReview() {
+  const setName = currentSheetName;
+  const si = window._setInfo;
+  const corrections = getSetCorrections(setName);
+  const isWeb = si?._source === 'web';
+  let html = '';
+
+  // Source badge
+  if (si) {
+    const proxyLabel = si._proxy ? ` · ${si._proxy}` : '';
+    const srcBadge = isWeb
+      ? `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.12);color:var(--green);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🌐 Fetched from web${proxyLabel}</div>`
+      : `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.12);color:var(--yellow);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🧠 From Claude memory — may be inaccurate</div>`;
+    html += srcBadge;
+  }
+
+  // Parallels section
+  html += `<div class="review-section"><div class="review-section-title">Parallels</div>`;
+  if (si?.parallels?.length) {
+    si.parallels.forEach(p => {
+      const pr = p.print_run ? `<span style="color:var(--text2);font-size:12px;"> ${escHtml(p.print_run)}</span>` : '';
+      const note = p.notes ? `<span style="color:var(--text2);font-size:12px;"> · ${escHtml(p.notes)}</span>` : (p.visual ? `<span style="color:var(--text2);font-size:12px;"> · ${escHtml(p.visual)}</span>` : '');
+      html += `<div class="review-item">• <strong>${escHtml(p.name)}</strong>${pr}${note}</div>`;
+    });
+  } else {
+    html += `<div class="review-empty">None found</div>`;
+  }
+  html += `</div>`;
+
+  // Variations / SPs section
+  const allVars = [...(si?.variations||[]), ...(si?.short_prints||[])];
+  html += `<div class="review-section"><div class="review-section-title">Image Variations &amp; SPs</div>`;
+  if (allVars.length) {
+    allVars.forEach(v => {
+      const code = v.back_code ? `<span style="color:var(--text2);font-size:12px;"> [${escHtml(v.back_code)}]</span>` : '';
+      html += `<div class="review-item">• <strong>${escHtml(v.name)}</strong>${code} — <span style="color:var(--text2);font-size:12px;">${escHtml(v.how_to_spot)}</span></div>`;
+    });
+  } else {
+    html += `<div class="review-empty">None found</div>`;
+  }
+  html += `</div>`;
+
+  // Notes
+  if (si?.notes && !['No specific data available for this set','No specific data available'].includes(si.notes)) {
+    html += `<div class="review-section"><div class="review-section-title">Notes</div><div class="review-item" style="padding-bottom:10px;color:var(--text2);font-size:13px;">${escHtml(si.notes)}</div></div>`;
+  }
+
+  // Confirmed lessons
+  if (corrections.length) {
+    html += `<div class="review-section"><div class="review-section-title">Your Lessons (${corrections.length})</div>`;
+    corrections.forEach(c => {
+      html += `<div class="review-item lesson-item">💡 ${escHtml(c.lesson)}</div>`;
+    });
+    html += `<div style="padding-bottom:6px;"></div></div>`;
+  }
+
+  // Re-fetch + debug buttons
+  html += `<button class="dig-btn" onclick="refetchSetInfo()" style="border-top:none;color:var(--text2);margin-top:4px;">🔄 Re-fetch from web (bust cache)</button>`;
+
+  // Debug log toggle
+  const dbgLog = window._fetchDebugLog;
+  if (dbgLog && dbgLog.length) {
+    html += `<details style="margin-top:8px;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;">
+      <summary style="cursor:pointer;color:var(--text2);font-weight:600;list-style:none;">🔍 Fetch debug log (${dbgLog.length} events)</summary>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
+        ${dbgLog.map(l => `<div style="color:${l.startsWith('⚠')?'var(--yellow)':'var(--text2)'};font-family:monospace;word-break:break-all;">${escHtml(l)}</div>`).join('')}
+      </div>
+    </details>`;
+  }
+
+  document.getElementById('set-review-content').innerHTML = html;
+  const pCount = si?.parallels?.length || 0;
+  const vCount = allVars.length;
+  let sub = setName;
+  if (pCount || vCount) sub += ` — ${[pCount ? pCount+' parallel'+(pCount!==1?'s':'') : '', vCount ? vCount+' variation'+(vCount!==1?'s':'') : ''].filter(Boolean).join(', ')}`;
+  else sub += ' — no data found';
+  document.getElementById('set-review-sub').textContent = sub;
+}
+
+async function refetchSetInfo() {
+  const setName = currentSheetName;
+  const cacheKey = `cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  localStorage.removeItem(cacheKey);
+  window._setInfo = null;
+  window._fetchDebugLog = [];
+  document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>Re-fetching…</div>`;
+  await loadSetInfo(setName);
+  renderSetInfoReview();
+  const src = window._setInfo?._source;
+  const proxy = window._setInfo?._proxy ? ` (via ${window._setInfo._proxy})` : '';
+  showToast(src === 'web' ? `✓ Updated from web${proxy}` : 'Web fetch failed — check debug log', src === 'web' ? 'success' : '');
+}
+
+
+function confirmSetInfo() {
+  goScanStep(2);
+}
+
+// ─── CORRECTIONS / LEARNING SYSTEM ───────────────────────────────────────────
+let _pendingCorrections = [];
+let _correctionIdx = 0;
+
+function getSetKey(setName) {
+  return (setName || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+function getSetCorrections(setName) {
+  try {
+    const raw = localStorage.getItem(`cc_corrections_${getSetKey(setName)}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveSetCorrection(setName, lesson) {
+  const key = `cc_corrections_${getSetKey(setName)}`;
+  const existing = getSetCorrections(setName);
+  existing.push({ lesson, timestamp: Date.now() });
+  localStorage.setItem(key, JSON.stringify(existing));
+}
+
+function generateSuggestedLesson(card, initialNote, finalNote) {
+  const player = card.playerName || 'this card';
+  const num = card.cardNumber ? ` (#${card.cardNumber})` : '';
+  if (!initialNote && finalNote) {
+    return `${player}${num}: when note is blank, the correct note is "${finalNote}"`;
+  }
+  if (initialNote && !finalNote) {
+    return `${player}${num}: remove the note "${initialNote}" (note should be blank)`;
+  }
+  return `${player}${num}: "${initialNote}" → "${finalNote}"`;
+}
+
+function checkForCorrections(writtenCards) {
+  const setName = currentSheetName || allSheets.find(s => s.id === currentSheetId)?.name || '';
+  _pendingCorrections = writtenCards
+    .filter(({initialNote, finalNote}) => initialNote.trim() !== finalNote.trim())
+    .map(({card, initialNote, finalNote}) => ({
+      card, initialNote, finalNote,
+      suggestedLesson: generateSuggestedLesson(card, initialNote, finalNote),
+      setName
+    }));
+  _correctionIdx = 0;
+
+  if (_pendingCorrections.length > 0) {
+    showCorrectionStep();
+  } else {
+    showSuccess();
+  }
+}
+
+function showCorrectionStep() {
+  renderCurrentCorrection();
+  goScanStep('4b');
+}
+
+function renderCurrentCorrection() {
+  const c = _pendingCorrections[_correctionIdx];
+  if (!c) return;
+  const total = _pendingCorrections.length;
+  const current = _correctionIdx + 1;
+
+  document.getElementById('correction-content').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${current} of ${total} edit${total !== 1 ? 's' : ''} detected</div>
+    <div class="correction-card">
+      <div class="correction-row">
+        <div class="correction-label">Card</div>
+        <div class="correction-value">${escHtml(c.card.playerName || '?')}${c.card.cardNumber ? ' <span style="color:var(--text2);font-size:12px;">#' + escHtml(c.card.cardNumber) + '</span>' : ''}</div>
+      </div>
+      <div class="correction-row">
+        <div class="correction-label">Claude's note</div>
+        <div class="correction-value dimmed">${escHtml(c.initialNote || '(blank)')}</div>
+      </div>
+      <div class="correction-row">
+        <div class="correction-label">What you wrote</div>
+        <div class="correction-value" style="color:var(--green);">${escHtml(c.finalNote || '(blank)')}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;margin-top:4px;">Edit the lesson before saving:</div>
+    <textarea class="note-input" id="lesson-textarea" style="min-height:68px;font-size:14px;">${escHtml(c.suggestedLesson)}</textarea>
+  `;
+}
+
+function confirmLesson() {
+  const c = _pendingCorrections[_correctionIdx];
+  if (!c) return;
+  const lesson = document.getElementById('lesson-textarea')?.value.trim();
+  if (lesson) {
+    saveSetCorrection(c.setName, lesson);
+    showToast('Lesson saved!', 'success');
+  }
+  nextCorrection();
+}
+
+function skipLesson() {
+  nextCorrection();
+}
+
+function nextCorrection() {
+  _correctionIdx++;
+  if (_correctionIdx < _pendingCorrections.length) {
+    renderCurrentCorrection();
+  } else {
+    showSuccess();
+  }
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`${screen}-screen`)?.classList.add('active');
+  document.getElementById(`nav-${screen}`)?.classList.add('active');
+
+  if (screen === 'sets') loadSheetsList();
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settings-api-key').value = getApiKey();
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettings(e) {
+  if (!e || e.target === document.getElementById('settings-modal')) {
+    document.getElementById('settings-modal').classList.remove('open');
+  }
+}
+
+function saveApiKey() {
+  const key = document.getElementById('settings-api-key').value.trim();
+  localStorage.setItem('cc_anthropic_key', key);
+  showToast('API key saved', 'success');
+  closeSettings();
+}
+
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
