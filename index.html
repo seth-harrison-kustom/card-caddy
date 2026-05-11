@@ -867,12 +867,24 @@ function findCard(cardNum, playerName, parallelDetected, claimedRows) {
 }
 
 // ─── SET INTELLIGENCE ─────────────────────────────────────────────────────────
-async function loadSetInfo(setName) {
+// Strip trailing single-letter sheet suffixes like "-B", " B", "_B"
+// e.g. "2024-Topps-Stadium-Club-Baseball-B" → "2024 Topps Stadium Club Baseball"
+function cleanSetNameForSearch(rawName) {
+  return rawName
+    .replace(/[-_ ][A-D]$/i, '')   // strip trailing -B, _B, " B", etc.
+    .replace(/[-_]+/g, ' ')         // hyphens/underscores → spaces
+    .trim();
+}
+
+async function loadSetInfo(setName, hint = '') {
   // v2 cache key — avoids stale data from old CORS-proxy approach
+  // Don't cache when a hint is provided — user wants a fresh search
   const cacheKey = `cc_setinfo_v2_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    try { window._setInfo = JSON.parse(cached); return; } catch(e) {}
+  if (!hint) {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try { window._setInfo = JSON.parse(cached); return; } catch(e) {}
+    }
   }
   window._setInfo = null;
   const apiKey = getApiKey();
@@ -888,7 +900,8 @@ async function loadSetInfo(setName) {
 
   // ── Claude web search ──
   setStatus('🔍 Searching web for set info…');
-  log(`Web search for: ${setName}`);
+  const cleanedName = cleanSetNameForSearch(setName);
+  log(`Raw name: "${setName}" → Cleaned: "${cleanedName}"${hint ? ` | Hint: "${hint}"` : ''}`);
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -906,7 +919,9 @@ async function loadSetInfo(setName) {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{
           role: 'user',
-          content: `Search the web to find complete checklist information for the baseball card set: "${setName}"
+          content: `Search the web to find complete checklist information for the baseball card set: "${cleanedName}"
+${hint ? `\nAdditional context from the user: ${hint}\n` : ''}
+The sheet this came from is named "${setName}" — any trailing letter suffix (A, B, C) is just a sheet-naming convention, not part of the set name.
 
 Search checklistinsider.com, cardboardconnection.com, beckett.com, and any other reliable card collecting sources. Find every parallel, short print, image variation, and insert set for this product.
 
@@ -2372,8 +2387,15 @@ function renderSetInfoReview() {
     html += `<div style="padding-bottom:6px;"></div></div>`;
   }
 
-  // Re-fetch + debug buttons
-  html += `<button class="dig-btn" onclick="refetchSetInfo()" style="border-top:none;color:var(--text2);margin-top:4px;">🔄 Re-fetch from web (bust cache)</button>`;
+  // Re-fetch + feedback
+  html += `
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+      <button class="dig-btn" onclick="refetchSetInfo()" style="border-top:none;color:var(--text2);">🔄 Re-fetch from web (bust cache)</button>
+      <div style="padding:0 2px;">
+        <textarea id="search-hint-input" placeholder="Optional: tell Claude what to fix (e.g. &quot;this is the hobby version&quot; or &quot;ignore the B suffix, this is Stadium Club Baseball&quot;)" style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;min-height:54px;margin-bottom:4px;"></textarea>
+        <button class="dig-btn" onclick="refetchSetInfoWithHint()" style="border:1px solid var(--border);border-radius:8px;color:var(--blue);font-weight:600;">🔍 Re-fetch with hint</button>
+      </div>
+    </div>`;
 
   // Debug log toggle
   const dbgLog = window._fetchDebugLog;
@@ -2395,18 +2417,23 @@ function renderSetInfoReview() {
   document.getElementById('set-review-sub').textContent = sub;
 }
 
-async function refetchSetInfo() {
+async function refetchSetInfo(hint = '') {
   const setName = currentSheetName;
   // Clear both old and new cache keys
   localStorage.removeItem(`cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
   localStorage.removeItem(`cc_setinfo_v2_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
   window._setInfo = null;
   window._fetchDebugLog = [];
-  document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>Re-fetching…</div>`;
-  await loadSetInfo(setName);
+  document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>${hint ? 'Re-fetching with hint…' : 'Re-fetching…'}</div>`;
+  await loadSetInfo(setName, hint);
   renderSetInfoReview();
   const src = window._setInfo?._source;
   showToast(src === 'web_search' ? '✓ Updated from web search' : src === 'memory' ? '✓ Updated from memory' : 'Lookup failed — check debug log', src ? 'success' : '');
+}
+
+async function refetchSetInfoWithHint() {
+  const hint = (document.getElementById('search-hint-input')?.value || '').trim();
+  await refetchSetInfo(hint);
 }
 
 
