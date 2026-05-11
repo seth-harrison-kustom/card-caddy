@@ -866,7 +866,8 @@ function findCard(cardNum, playerName, parallelDetected, claimedRows) {
 
 // ─── SET INTELLIGENCE ─────────────────────────────────────────────────────────
 async function loadSetInfo(setName) {
-  const cacheKey = `cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  // v2 cache key — avoids stale data from old CORS-proxy approach
+  const cacheKey = `cc_setinfo_v2_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
   const cached = localStorage.getItem(cacheKey);
   if (cached) {
     try { window._setInfo = JSON.parse(cached); return; } catch(e) {}
@@ -878,206 +879,98 @@ async function loadSetInfo(setName) {
   const statusEl = document.getElementById('set-loading');
   const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
 
-  // Debug log — visible in UI via debug button
   const dbg = [];
   window._fetchDebugLog = dbg;
   const log = (msg) => { dbg.push(msg); console.log('[CardCaddy]', msg); };
   const warn = (msg) => { dbg.push('⚠ ' + msg); console.warn('[CardCaddy]', msg); };
 
-  // CORS proxy waterfall — tried in order until one works
-  const PROXIES = [
-    { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-    { name: 'allorigins',     fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-    { name: 'codetabs',       fn: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-    { name: 'direct',         fn: u => u },
-  ];
+  // ── Claude web search ──
+  setStatus('🔍 Searching web for set info…');
+  log(`Web search for: ${setName}`);
 
-  // ── STEP 1: Ask Claude to generate URLs for both checklist sites ──
-  setStatus('🧠 Identifying set…');
-  let checklistUrl = null, urlAlts = [], ccUrl = null, ccAlts = [];
   try {
-    const urlResp = await claudeCall(apiKey, 400, `This is a Google Sheet name from a baseball card collection: "${setName}"
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 4096,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{
+          role: 'user',
+          content: `Search the web to find complete checklist information for the baseball card set: "${setName}"
 
-Identify the baseball card set and generate checklist page slugs for two sites.
+Search checklistinsider.com, cardboardconnection.com, beckett.com, and any other reliable card collecting sources. Find every parallel, short print, image variation, and insert set for this product.
 
-checklistinsider.com slug pattern: {year}-{brand}-{series}-baseball
-cardboardconnection.com slug pattern: {year}-{brand}-{series}-baseball-checklist
-
-Examples:
-- "2024-Topps-Archives-Baseball" → ci: "2024-topps-archives-baseball", cc: "2024-topps-archives-baseball-checklist"
-- "2023 Topps Stadium Club" → ci: "2023-topps-stadium-club-baseball", cc: "2023-topps-stadium-club-baseball-checklist"
-- "2025 Topps Series 1" → ci: "2025-topps-series-1-baseball", cc: "2025-topps-series-1-baseball-cards"
-- "2024 Bowman Draft" → ci: "2024-bowman-draft-baseball", cc: "2024-bowman-draft-baseball-checklist"
-
-Return ONLY valid JSON (no markdown):
-{"ci":{"primary":"SLUG","alts":["ALT"]},"cc":{"primary":"SLUG","alts":["ALT"]}}`);
-
-    try {
-      const t = urlResp.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
-      const parsed = JSON.parse(t);
-      const ciBase = 'https://www.checklistinsider.com/';
-      const ccBase = 'https://www.cardboardconnection.com/';
-      if (parsed.ci?.primary) {
-        checklistUrl = ciBase + parsed.ci.primary.replace(/^\/+|\/+$/g,'');
-        urlAlts = (parsed.ci.alts || []).map(a => ciBase + a.replace(/^\/+|\/+$/g,''));
-      }
-      if (parsed.cc?.primary) {
-        ccUrl = ccBase + parsed.cc.primary.replace(/^\/+|\/+$/g,'');
-        ccAlts = (parsed.cc.alts || []).map(a => ccBase + a.replace(/^\/+|\/+$/g,''));
-      }
-    } catch(e) { warn('URL JSON parse failed: ' + urlResp.slice(0,100)); }
-    log(`Step 1 CI: ${checklistUrl} | CC: ${ccUrl}`);
-  } catch(e) {
-    warn('Step 1 (URL gen) failed: ' + e.message);
-  }
-
-  // ── STEP 2: Try fetching from checklist sites (checklistinsider, then cardboardconnection) ──
-  const sitesToTry = [
-    { label: 'checklistinsider', urls: [checklistUrl, ...urlAlts].filter(Boolean) },
-    { label: 'cardboardconnection', urls: [ccUrl, ...ccAlts].filter(Boolean) },
-  ];
-
-  for (const site of sitesToTry) {
-    if (!site.urls.length) continue;
-    let siteSucceeded = false;
-
-    for (const targetUrl of site.urls) {
-      if (siteSucceeded) break;
-      let urlDefinitelyMissing = false;
-
-      for (const proxy of PROXIES) {
-        if (urlDefinitelyMissing) break;
-        const proxyUrl = proxy.fn(targetUrl);
-        setStatus(`🌐 Fetching via ${proxy.name}…`);
-        log(`Trying ${proxy.name} → ${targetUrl}`);
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 8000);
-          const pageResp = await fetch(proxyUrl, { signal: controller.signal });
-          clearTimeout(tid);
-          log(`${proxy.name} HTTP ${pageResp.status}`);
-
-          // Hard 404 from server — URL doesn't exist, skip other proxies
-          if (pageResp.status === 404) {
-            warn(`${proxy.name}: HTTP 404 — URL missing, skipping proxies`);
-            urlDefinitelyMissing = true; break;
-          }
-          if (!pageResp.ok) { warn(`${proxy.name}: HTTP ${pageResp.status}`); continue; }
-
-          const html = await pageResp.text();
-          log(`${proxy.name}: got ${html.length} chars`);
-          if (!html || html.length < 500) { warn(`${proxy.name}: response too short`); continue; }
-
-          const lc = html.toLowerCase();
-          // Soft 404 (page returned 200 but content says not found) — skip proxies too
-          if (lc.includes('page not found') || lc.includes('404 not found') ||
-              lc.includes("couldn't be found") || lc.includes('nothing here') ||
-              lc.includes('no results found') || lc.includes("page doesn't exist") ||
-              (lc.includes('oops') && lc.includes('not found'))) {
-            warn(`${proxy.name}: soft 404 detected — skipping proxies for this URL`);
-            urlDefinitelyMissing = true; break;
-          }
-
-          // Strip HTML → plain text
-          const tmp = document.createElement('div');
-          tmp.innerHTML = html;
-          tmp.querySelectorAll('script,style,nav,header,footer,iframe,noscript').forEach(el => el.remove());
-          const pageText = (tmp.textContent || '').replace(/\s+/g,' ').trim();
-          log(`Stripped text: ${pageText.length} chars | preview: "${pageText.slice(0,150)}"`);
-
-          // Validate it's actually a card checklist page
-          const ptlc = pageText.toLowerCase();
-          const hasCardContent = ptlc.includes('parallel') || ptlc.includes('foil') || ptlc.includes('checklist') || ptlc.includes('short print') || ptlc.includes('variation') || ptlc.includes('topps') || ptlc.includes('bowman') || ptlc.includes('panini');
-          if (!hasCardContent) { warn(`${proxy.name}: page doesn't look like a card checklist`); continue; }
-
-          // ── STEP 3: Claude parses the page ──
-          setStatus('🧠 Parsing set info…');
-          log('Sending to Claude for parsing…');
-          // Use first 40K chars — reduces output length needed
-          const pageSlice = pageText.slice(0, 40000);
-          const parseText = await claudeCall(apiKey, 4096, `Parse this baseball card checklist page and extract ALL parallel and variation information. Be thorough — include EVERY parallel, even if there are many. Keep field values SHORT (under 60 chars each) to avoid truncation.
-
-PAGE TEXT:
-${pageSlice}
-
-Return ONLY valid JSON (no markdown):
+Return ONLY valid JSON (no markdown, no explanation outside the JSON):
 {
   "parallels": [{"name": "Pink Foilboard", "print_run": null, "notes": "Target exclusive"}],
-  "variations": [{"name": "1961 Design", "back_code": "V1", "how_to_spot": "1961 Topps design"}],
-  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo"}],
-  "notes": "brief context"
+  "variations": [{"name": "1961 Design", "back_code": "V1", "how_to_spot": "1961 Topps design on card back"}],
+  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo than base"}],
+  "notes": "brief context about this set"
 }
 
-Rules: print_run = serial number like "/99" or null if unnumbered. notes = retail/hobby/box exclusivity. Omit empty arrays. End with a closing brace.`);
+Be exhaustive — list every parallel even if there are 20+. print_run = numbered like "/99" or null if unnumbered. notes = retailer/hobby/box exclusivity info.`
+        }]
+      })
+    });
 
-          // Attempt JSON parse with truncation recovery
-          let parsed = null;
-          const cleanText = parseText.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
-          try {
-            parsed = JSON.parse(cleanText);
-          } catch(e) {
-            // Try to repair truncated JSON by finding the last complete object
-            log('JSON truncated — attempting repair…');
-            try {
-              // Find last complete parallel entry and close the structure
-              let repaired = cleanText;
-              // Remove trailing incomplete entry (ends mid-object)
-              repaired = repaired.replace(/,\s*\{[^}]*$/, '');
-              // Close any open arrays and the root object
-              const openBrackets = (repaired.match(/\[/g)||[]).length - (repaired.match(/\]/g)||[]).length;
-              const openBraces = (repaired.match(/\{/g)||[]).length - (repaired.match(/\}/g)||[]).length;
-              repaired += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
-              parsed = JSON.parse(repaired);
-              parsed._truncated = true;
-              log(`Repair succeeded — truncated response recovered`);
-            } catch(e2) {
-              warn(`Claude parse JSON failed (even after repair): ${e.message} | response: ${parseText.slice(0,200)}`);
-            }
-          }
-
-          if (parsed) {
-            parsed._source = 'web';
-            parsed._sourceUrl = targetUrl;
-            parsed._proxy = proxy.name;
-            window._setInfo = parsed;
-            localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
-            log(`✅ Web fetch succeeded via ${proxy.name}! ${parsed.parallels?.length} parallels, ${parsed.variations?.length} variations${parsed._truncated?' (partial — response was truncated)':''}`);
-            siteSucceeded = true;
-            return;
-          }
-        } catch(fetchErr) {
-          warn(`${proxy.name} fetch error: ${fetchErr.message}`);
-        }
-      }
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(`Claude API ${resp.status}: ${err.error?.message || ''}`);
     }
-    if (siteSucceeded) break;
+
+    const result = await resp.json();
+    log(`Response: ${result.content?.length} blocks, stop_reason=${result.stop_reason}`);
+
+    // Pull all text blocks out of the response (web search results are embedded server-side)
+    const textBlocks = (result.content || []).filter(b => b.type === 'text');
+    const fullText = textBlocks.map(b => b.text).join('\n');
+    log(`Text preview: ${fullText.slice(0, 200)}`);
+
+    const cleanText = fullText.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON object found in response');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    parsed._source = 'web_search';
+    window._setInfo = parsed;
+    localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
+    log(`✅ Web search done: ${parsed.parallels?.length || 0} parallels, ${parsed.variations?.length || 0} variations, ${parsed.short_prints?.length || 0} SPs`);
+    return;
+
+  } catch(e) {
+    warn(`Web search failed: ${e.message} — falling back to memory`);
   }
-  warn('All sites exhausted — falling back to Claude memory');
 
   // ── FALLBACK: Claude memory ──
   setStatus('🧠 Looking up from memory…');
   log('Using Claude memory fallback');
   try {
-    const text = await claudeCall(apiKey, 1500, `You are a baseball card expert. For the set "${setName}", list ALL known parallels, short prints, image variations, and special cards. Be thorough and specific.
+    const text = await claudeCall(apiKey, 1500, `You are a baseball card expert. For the set "${setName}", list ALL known parallels, short prints, image variations, and special cards from your training knowledge. Be thorough.
 
 Return ONLY valid JSON (no markdown):
 {
-  "parallels": [{"name": "Blue Border", "print_run": "/99", "visual": "blue foil border treatment", "notes": "Retail exclusive"}],
+  "parallels": [{"name": "Blue Border", "print_run": "/99", "notes": "Retail exclusive"}],
   "variations": [{"name": "Image Variation", "back_code": "V1", "how_to_spot": "alternate photo vs base card"}],
   "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo or design element"}],
   "notes": "any important identification context for this set"
 }
 
-If you don't have reliable data for this specific set, return: {"parallels":[],"variations":[],"short_prints":[],"notes":"No specific data available for this set"}`);
-    try {
-      const parsed = JSON.parse(text.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim());
-      parsed._source = 'memory';
-      window._setInfo = parsed;
-      localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
-      log(`Memory fallback: ${parsed.parallels?.length} parallels`);
-    } catch(e) { window._setInfo = null; warn('Memory fallback JSON parse failed'); }
+If you don't have reliable data, return: {"parallels":[],"variations":[],"short_prints":[],"notes":"No specific data available for this set"}`);
+    const parsed = JSON.parse(text.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim());
+    parsed._source = 'memory';
+    window._setInfo = parsed;
+    localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
+    log(`Memory fallback: ${parsed.parallels?.length || 0} parallels`);
   } catch(e) {
-    warn('Memory fallback Claude call failed: ' + e.message);
+    warn('Memory fallback failed: ' + e.message);
     window._setInfo = null;
   }
 }
@@ -2447,16 +2340,16 @@ function renderSetInfoReview() {
 
 async function refetchSetInfo() {
   const setName = currentSheetName;
-  const cacheKey = `cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-  localStorage.removeItem(cacheKey);
+  // Clear both old and new cache keys
+  localStorage.removeItem(`cc_setinfo_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
+  localStorage.removeItem(`cc_setinfo_v2_${setName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
   window._setInfo = null;
   window._fetchDebugLog = [];
   document.getElementById('set-review-content').innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2)"><div class="spinner" style="margin:0 auto 12px;"></div>Re-fetching…</div>`;
   await loadSetInfo(setName);
   renderSetInfoReview();
   const src = window._setInfo?._source;
-  const proxy = window._setInfo?._proxy ? ` (via ${window._setInfo._proxy})` : '';
-  showToast(src === 'web' ? `✓ Updated from web${proxy}` : 'Web fetch failed — check debug log', src === 'web' ? 'success' : '');
+  showToast(src === 'web_search' ? '✓ Updated from web search' : src === 'memory' ? '✓ Updated from memory' : 'Lookup failed — check debug log', src ? 'success' : '');
 }
 
 
