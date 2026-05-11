@@ -388,7 +388,7 @@ textarea.field-input { min-height: 80px; resize: none; font-family: monospace; f
         </div>
         <div id="card-results-list"></div>
         <div style="margin-top:16px;display:grid;gap:10px;">
-          <button class="btn btn-primary" id="write-btn" onclick="writeChanges()">✓ Write to Sheet</button>
+          <button class="btn btn-primary" id="write-btn" onclick="writeOrRescan()">✓ Write to Sheet</button>
           <button class="btn btn-secondary" onclick="goScanStep(1)">🔄 Change Set</button>
         </div>
       </div>
@@ -898,12 +898,28 @@ async function loadSetInfo(setName, hint = '') {
   const log = (msg) => { dbg.push(msg); console.log('[CardCaddy]', msg); };
   const warn = (msg) => { dbg.push('⚠ ' + msg); console.warn('[CardCaddy]', msg); };
 
-  // ── Claude web search ──
+  // ── STEP 1: Try Claude web search (beta tool) ──
   setStatus('🔍 Searching web for set info…');
   const cleanedName = cleanSetNameForSearch(setName);
   log(`Raw name: "${setName}" → Cleaned: "${cleanedName}"${hint ? ` | Hint: "${hint}"` : ''}`);
 
+  let webSearchWorked = false;
   try {
+    const searchPrompt = `Search the web to find complete checklist information for the baseball card set: "${cleanedName}"
+${hint ? `\nAdditional context: ${hint}\n` : ''}
+The sheet name is "${setName}" — trailing letter suffixes (A, B, C) are just sheet-naming conventions, not part of the set name.
+
+Search checklistinsider.com, cardboardconnection.com, beckett.com, and other reliable card sources. Find every parallel, short print, image variation, and insert set.
+
+Return ONLY valid JSON (no markdown):
+{
+  "parallels": [{"name": "Pink Foilboard", "print_run": null, "notes": "Target exclusive"}],
+  "variations": [{"name": "1961 Design", "back_code": "V1", "how_to_spot": "1961 Topps design on card back"}],
+  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo than base"}],
+  "notes": "brief context about this set"
+}
+Be exhaustive. print_run = "/99" style or null. notes = retailer/hobby/box exclusivity.`;
+
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -915,79 +931,93 @@ async function loadSetInfo(setName, hint = '') {
       },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 4096,
+        max_tokens: 16384,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{
-          role: 'user',
-          content: `Search the web to find complete checklist information for the baseball card set: "${cleanedName}"
-${hint ? `\nAdditional context from the user: ${hint}\n` : ''}
-The sheet this came from is named "${setName}" — any trailing letter suffix (A, B, C) is just a sheet-naming convention, not part of the set name.
-
-Search checklistinsider.com, cardboardconnection.com, beckett.com, and any other reliable card collecting sources. Find every parallel, short print, image variation, and insert set for this product.
-
-Return ONLY valid JSON (no markdown, no explanation outside the JSON):
-{
-  "parallels": [{"name": "Pink Foilboard", "print_run": null, "notes": "Target exclusive"}],
-  "variations": [{"name": "1961 Design", "back_code": "V1", "how_to_spot": "1961 Topps design on card back"}],
-  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo than base"}],
-  "notes": "brief context about this set"
-}
-
-Be exhaustive — list every parallel even if there are 20+. print_run = numbered like "/99" or null if unnumbered. notes = retailer/hobby/box exclusivity info.`
-        }]
+        messages: [{ role: 'user', content: searchPrompt }]
       })
     });
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      throw new Error(`Claude API ${resp.status}: ${err.error?.message || ''}`);
+      const msg = `HTTP ${resp.status}: ${err.error?.message || JSON.stringify(err)}`;
+      warn(`Web search API error — ${msg}`);
+      throw new Error(msg);
     }
 
     const result = await resp.json();
-    log(`Response: ${result.content?.length} blocks, stop_reason=${result.stop_reason}`);
+    const blockTypes = (result.content || []).map(b => b.type).join(', ');
+    log(`Web search response: stop_reason=${result.stop_reason}, blocks=[${blockTypes}]`);
 
-    // Pull all text blocks out of the response (web search results are embedded server-side)
-    const textBlocks = (result.content || []).filter(b => b.type === 'text');
-    const fullText = textBlocks.map(b => b.text).join('\n');
-    log(`Text preview: ${fullText.slice(0, 200)}`);
+    if (result.stop_reason === 'tool_use') {
+      // Tool needs client-side execution — not supported in browser context
+      warn('Web search returned tool_use — cannot execute from browser, using deep memory instead');
+    } else {
+      // end_turn: web search ran server-side, extract text
+      const textBlocks = (result.content || []).filter(b => b.type === 'text');
+      const fullText = textBlocks.map(b => b.text).join('\n');
+      log(`Web search text (${fullText.length} chars): ${fullText.slice(0, 150)}`);
 
-    const cleanText = fullText.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON object found in response');
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    parsed._source = 'web_search';
-    window._setInfo = parsed;
-    localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
-    log(`✅ Web search done: ${parsed.parallels?.length || 0} parallels, ${parsed.variations?.length || 0} variations, ${parsed.short_prints?.length || 0} SPs`);
-    return;
-
+      const cleanText = fullText.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim();
+      const jsonMatch = cleanText.match(/\{[\s\S]*/);
+      if (!jsonMatch) {
+        warn(`No JSON in web search response — preview: ${fullText.slice(0, 200)}`);
+      } else {
+        let jsonStr = jsonMatch[0];
+        let parsed = null;
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch(e) {
+          // Truncated — repair by closing open brackets/braces
+          log(`JSON truncated (stop_reason=${result.stop_reason}), attempting repair…`);
+          let repaired = jsonStr.replace(/,\s*\{[^}]*$/, '').replace(/,\s*"[^"]*$/, '');
+          const openBrackets = (repaired.match(/\[/g)||[]).length - (repaired.match(/\]/g)||[]).length;
+          const openBraces   = (repaired.match(/\{/g)||[]).length - (repaired.match(/\}/g)||[]).length;
+          repaired += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
+          try {
+            parsed = JSON.parse(repaired);
+            parsed._truncated = true;
+            log('JSON repair succeeded');
+          } catch(e2) {
+            warn(`JSON repair failed: ${e2.message}`);
+          }
+        }
+        if (parsed) {
+          parsed._source = 'web_search';
+          window._setInfo = parsed;
+          localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
+          log(`✅ Web search done: ${parsed.parallels?.length || 0} parallels, ${parsed.variations?.length || 0} variations, ${parsed.short_prints?.length || 0} SPs${parsed._truncated ? ' (repaired truncation)' : ''}`);
+          webSearchWorked = true;
+        }
+      }
+    }
   } catch(e) {
-    warn(`Web search failed: ${e.message} — falling back to memory`);
+    warn(`Web search failed: ${e.message}`);
   }
 
-  // ── FALLBACK: Claude memory ──
-  setStatus('🧠 Looking up from memory…');
-  log('Using Claude memory fallback');
+  if (webSearchWorked) return;
+
+  // ── STEP 2: Deep knowledge lookup — Claude's training data, no escape hatch ──
+  setStatus('🧠 Looking up from training data…');
+  log('Using deep knowledge lookup');
   try {
-    const text = await claudeCall(apiKey, 1500, `You are a baseball card expert. For the set "${setName}", list ALL known parallels, short prints, image variations, and special cards from your training knowledge. Be thorough.
+    const text = await claudeCall(apiKey, 2000, `You are a baseball card expert with comprehensive knowledge through mid-2025. For the set "${cleanedName}" (sheet name: "${setName}"), provide a complete list of ALL parallels, short prints, image variations, and special insert sets.
+${hint ? `User note: ${hint}\n` : ''}
+This may be a 2024 or 2025 release — you have training data on recent sets including 2025 releases. Use everything you know. Do NOT say you lack data — give your best, most complete answer even if some details are uncertain.
 
 Return ONLY valid JSON (no markdown):
 {
-  "parallels": [{"name": "Blue Border", "print_run": "/99", "notes": "Retail exclusive"}],
+  "parallels": [{"name": "Blue Foil", "print_run": "/99", "notes": "Retail exclusive"}],
   "variations": [{"name": "Image Variation", "back_code": "V1", "how_to_spot": "alternate photo vs base card"}],
-  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo or design element"}],
-  "notes": "any important identification context for this set"
-}
-
-If you don't have reliable data, return: {"parallels":[],"variations":[],"short_prints":[],"notes":"No specific data available for this set"}`);
+  "short_prints": [{"name": "SP", "back_code": "SP", "how_to_spot": "different photo or design"}],
+  "notes": "key identification context for this set"
+}`);
     const parsed = JSON.parse(text.trim().replace(/```json?\n?/g,'').replace(/```\n?/g,'').trim());
     parsed._source = 'memory';
     window._setInfo = parsed;
     localStorage.setItem(cacheKey, JSON.stringify(window._setInfo));
-    log(`Memory fallback: ${parsed.parallels?.length || 0} parallels`);
+    log(`Deep knowledge: ${parsed.parallels?.length || 0} parallels, ${parsed.variations?.length || 0} variations`);
   } catch(e) {
-    warn('Memory fallback failed: ' + e.message);
+    warn('Deep knowledge lookup failed: ' + e.message);
     window._setInfo = null;
   }
 }
@@ -1633,7 +1663,7 @@ function renderResults() {
           <textarea class="note-input" id="note-${idx}" placeholder="e.g. Gold Refractor 23/50" style="flex:1;" oninput="onNoteEdited(${idx})">${escHtml(card.note || '')}</textarea>
           <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
             <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="padding:6px 10px;font-size:12px;">Skip</button>
-            <button class="act-btn skip" onclick="recheckCard(${idx})" id="recheck-btn-${idx}" style="padding:6px 10px;font-size:11px;color:var(--blue);" title="Right player, wrong card — re-scan after writing">📷 Re-check</button>
+            <button class="act-btn skip" onclick="recheckCard(${idx})" id="recheck-btn-${idx}" style="padding:6px 10px;font-size:11px;color:var(--blue);" title="Wrong card type — skips this card and sends you back to the camera">📷 Wrong card</button>
           </div>
         </div>
       </div>
@@ -1747,7 +1777,7 @@ function recheckCard(idx) {
   const skipBtn = document.getElementById(`skip-btn-${idx}`);
   if (skipBtn) { skipBtn.textContent = '↩ Undo'; skipBtn.disabled = false; skipBtn.onclick = () => unskipCard(idx); }
   const recheckBtn = document.getElementById(`recheck-btn-${idx}`);
-  if (recheckBtn) { recheckBtn.textContent = '📷 Queued'; recheckBtn.disabled = true; recheckBtn.style.opacity = '0.4'; }
+  if (recheckBtn) { recheckBtn.textContent = '📷 Re-scan queued'; recheckBtn.disabled = true; recheckBtn.style.opacity = '0.5'; }
   const noteInput = document.getElementById(`note-${idx}`);
   if (noteInput) noteInput.disabled = true;
   updateWriteCount();
@@ -1756,11 +1786,39 @@ function recheckCard(idx) {
 function updateWriteCount() {
   const visible = identifiedCards.filter(c => c.mergedInto === undefined);
   const writeCount = visible.filter(c => c.match && !c.skipped).length;
+  const recheckCount = visible.filter(c => c.recheckPending).length;
   const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) {
+  if (!writeBtn) return;
+
+  if (writeCount === 0 && recheckCount > 0) {
+    // Nothing left to write — only re-scans queued, go straight to camera
+    writeBtn.textContent = `📷 Re-scan ${recheckCount} Card${recheckCount !== 1 ? 's' : ''} Now`;
+    writeBtn.style.background = 'var(--blue)';
+    writeBtn.style.color = '#fff';
+  } else if (writeCount > 0 && recheckCount > 0) {
+    writeBtn.textContent = `✓ Write ${writeCount} · then Re-scan ${recheckCount}`;
+    writeBtn.style.background = '';
+    writeBtn.style.color = '';
+  } else {
     writeBtn.textContent = writeCount > 0
       ? `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`
       : 'No cards to write';
+    writeBtn.style.background = '';
+    writeBtn.style.color = '';
+  }
+}
+
+function writeOrRescan() {
+  const visible = identifiedCards.filter(c => c.mergedInto === undefined);
+  const writeCount = visible.filter(c => c.match && !c.skipped).length;
+  const recheckCount = visible.filter(c => c.recheckPending).length;
+
+  if (writeCount === 0 && recheckCount > 0) {
+    // Nothing to write — go straight to camera for the re-scans
+    identifiedCards.forEach(c => { c.recheckPending = false; });
+    resetScan();
+  } else {
+    writeChanges();
   }
 }
 
@@ -2335,15 +2393,17 @@ function renderSetInfoReview() {
   const setName = currentSheetName;
   const si = window._setInfo;
   const corrections = getSetCorrections(setName);
-  const isWeb = si?._source === 'web';
+  const src = si?._source;
   let html = '';
 
   // Source badge
   if (si) {
-    const proxyLabel = si._proxy ? ` · ${si._proxy}` : '';
-    const srcBadge = isWeb
-      ? `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.12);color:var(--green);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🌐 Fetched from web${proxyLabel}</div>`
-      : `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.12);color:var(--yellow);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🧠 From Claude memory — may be inaccurate</div>`;
+    let srcBadge = '';
+    if (src === 'web_search' || src === 'web') {
+      srcBadge = `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.12);color:var(--green);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🌐 Fetched live from the web</div>`;
+    } else {
+      srcBadge = `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(59,130,246,0.1);color:var(--blue);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;margin-bottom:12px;">🧠 From training data — verify if uncertain</div>`;
+    }
     html += srcBadge;
   }
 
