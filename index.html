@@ -1323,7 +1323,7 @@ CRITICAL RULES:
         skipped: false,
         note: '',
         confidenceLevel: confLevel,
-        lowConfidence: confLevel !== 'high' || isInHolder,
+        lowConfidence: confLevel !== 'high',
         manuallyIncluded: false,
         inHolder: isInHolder
       };
@@ -1618,10 +1618,11 @@ function renderResults() {
       : '';
 
     // Holder banner takes priority; otherwise show generic low-conf banner
-    const holderBanner = card.inHolder
-      ? `<div class="low-conf-banner">
-          <span>🛡️ Card is in a sleeve/holder — harder to read accurately</span>
-          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retake outside holder</button>
+    const holderBanner = (card.inHolder && !card.holderDismissed)
+      ? `<div class="low-conf-banner" id="holder-banner-${idx}" style="gap:6px;">
+          <span style="flex:1;">🛡️ Detected in sleeve/holder — looks fine? Just write it.</span>
+          <button class="include-btn" onclick="dismissHolder(${idx})">✓ Write as-is</button>
+          <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retake</button>
         </div>`
       : '';
     const confBanner = (!card.inHolder && card.lowConfidence && !card.manuallyIncluded)
@@ -1728,6 +1729,12 @@ function updateSetLabel(sheetName, labelEl) {
     pill = `<span class="set-info-pill">${isWeb ? '🌐' : '🧠'} ${parts.join(' · ')}</span>`;
   }
   el.innerHTML = `📊 ${sheetName}${pill}`;
+}
+
+function dismissHolder(idx) {
+  identifiedCards[idx].holderDismissed = true;
+  const banner = document.getElementById(`holder-banner-${idx}`);
+  if (banner) banner.remove();
 }
 
 function includeCard(idx) {
