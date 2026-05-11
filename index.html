@@ -118,7 +118,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
 .card-result { background: var(--bg2); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); }
 .card-result.confirmed { border-color: var(--green); }
-.card-result.rejected { border-color: var(--border); opacity: 0.5; }
+.card-result.rejected { border-color: var(--border); opacity: 0.45; }
+.card-result.recheck { border-color: var(--blue); opacity: 0.55; }
 .card-result.not-found { border-color: var(--red); }
 .card-result-header { padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
 .card-num { background: var(--bg3); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0; font-family: monospace; }
@@ -410,6 +411,7 @@ textarea.field-input { min-height: 80px; resize: none; font-family: monospace; f
           <div class="check">✅</div>
           <h2 id="success-title">Cards Logged!</h2>
           <p id="success-msg">Written to your sheet</p>
+          <div id="recheck-banner" style="display:none;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:left;"></div>
           <button class="btn btn-primary" style="margin-bottom:10px" onclick="resetScan()">📷 Scan More Cards</button>
           <button class="btn btn-secondary" style="margin-bottom:10px" onclick="goScanStep(1)">🔄 Change Set</button>
           <button class="btn btn-secondary" onclick="goTo('home')">🏠 Done</button>
@@ -1457,26 +1459,20 @@ function renderResults() {
   const visible = identifiedCards.filter(c => c.mergedInto === undefined);
   const matched = visible.filter(c => c.match && !c.skipped).length;
   const total = visible.length;
-  const highConf = visible.filter(c => c.match && !c.skipped && !c.lowConfidence).length;
   const lowConfCount = visible.filter(c => c.match && !c.skipped && c.lowConfidence && !c.manuallyIncluded).length;
   const badge = document.getElementById('results-badge');
   badge.textContent = `${matched}/${total} matched${lowConfCount > 0 ? ` · ${lowConfCount} flagged` : ''}`;
   badge.className = `badge ${matched > 0 ? 'green' : 'red'}`;
 
-  // Write button counts only high-confidence + manually-included
-  const writeCount = visible.filter(c => c.match && !c.skipped && (!c.lowConfidence || c.manuallyIncluded)).length;
-  const flaggedCount = visible.filter(c => c.match && !c.skipped && c.lowConfidence && !c.manuallyIncluded).length;
+  // All non-skipped matched cards are writable — low-conf flag is visual only
+  const writeCount = visible.filter(c => c.match && !c.skipped).length;
   const writeBtn = document.getElementById('write-btn');
   if (writeBtn) {
-    if (writeCount === 0 && flaggedCount > 0) {
-      writeBtn.textContent = `⚠️ ${flaggedCount} card${flaggedCount !== 1 ? 's' : ''} flagged — edit notes or tap "Include anyway"`;
-      writeBtn.style.background = 'var(--bg3)';
-      writeBtn.style.color = 'var(--yellow)';
-    } else {
-      writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
-      writeBtn.style.background = '';
-      writeBtn.style.color = '';
-    }
+    writeBtn.textContent = writeCount > 0
+      ? `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`
+      : 'No cards to write';
+    writeBtn.style.background = '';
+    writeBtn.style.color = '';
   }
 
   list.innerHTML = identifiedCards.map((card, idx) => {
@@ -1583,10 +1579,10 @@ function renderResults() {
           <button class="closeup-btn" onclick="takeCloseup(${idx})">📷 Retake outside holder</button>
         </div>`
       : '';
-    const confBanner = (!card.inHolder && card.lowConfidence)
+    const confBanner = (!card.inHolder && card.lowConfidence && !card.manuallyIncluded)
       ? `<div class="low-conf-banner">
-          <span>⚠️ ${card.confidenceLevel === 'medium' ? 'Medium' : 'Low'} confidence — verify before writing</span>
-          <button class="include-btn" id="inc-btn-${idx}" onclick="includeCard(${idx})">Include anyway</button>
+          <span>⚠️ ${card.confidenceLevel === 'medium' ? 'Medium' : 'Low'} confidence — verify card before writing</span>
+          <button class="include-btn" id="inc-btn-${idx}" onclick="includeCard(${idx})">✓ Looks right</button>
         </div>`
       : '';
 
@@ -1620,7 +1616,10 @@ function renderResults() {
         <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">${noteLabel}</div>
         <div style="display:flex;gap:6px;align-items:flex-start;">
           <textarea class="note-input" id="note-${idx}" placeholder="e.g. Gold Refractor 23/50" style="flex:1;" oninput="onNoteEdited(${idx})">${escHtml(card.note || '')}</textarea>
-          <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="flex-shrink:0;padding:8px 10px;font-size:12px;">Skip</button>
+          <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+            <button class="act-btn skip" onclick="skipCard(${idx})" id="skip-btn-${idx}" style="padding:6px 10px;font-size:12px;">Skip</button>
+            <button class="act-btn skip" onclick="recheckCard(${idx})" id="recheck-btn-${idx}" style="padding:6px 10px;font-size:11px;color:var(--blue);" title="Right player, wrong card — re-scan after writing">📷 Re-check</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1689,32 +1688,70 @@ function updateSetLabel(sheetName, labelEl) {
 function includeCard(idx) {
   identifiedCards[idx].manuallyIncluded = true;
   const btn = document.getElementById(`inc-btn-${idx}`);
-  if (btn) { btn.textContent = '✓ Included'; btn.classList.add('included'); btn.onclick = null; }
+  if (btn) { btn.textContent = '✓ Verified'; btn.classList.add('included'); btn.onclick = null; }
   const el = document.getElementById(`card-${idx}`);
   if (el) el.classList.remove('low-conf');
-  // Update write button count
-  const writeCount = identifiedCards.filter(c => c.match && !c.skipped && c.mergedInto === undefined && (!c.lowConfidence || c.manuallyIncluded)).length;
-  const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) writeBtn.textContent = `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`;
 }
 
 function skipCard(idx) {
-  identifiedCards[idx].skipped = true;
+  const card = identifiedCards[idx];
+  card.skipped = true;
+  card.recheckPending = false;
   const el = document.getElementById(`card-${idx}`);
-  el.classList.add('rejected');
+  if (el) { el.classList.remove('recheck'); el.classList.add('rejected'); }
   const skipBtn = document.getElementById(`skip-btn-${idx}`);
-  if (skipBtn) { skipBtn.textContent = '✓ Skipped'; skipBtn.disabled = true; skipBtn.onclick = null; }
+  if (skipBtn) { skipBtn.textContent = '↩ Undo'; skipBtn.disabled = false; skipBtn.onclick = () => unskipCard(idx); }
+  const recheckBtn = document.getElementById(`recheck-btn-${idx}`);
+  if (recheckBtn) { recheckBtn.disabled = true; recheckBtn.style.opacity = '0.3'; }
   const noteInput = document.getElementById(`note-${idx}`);
   if (noteInput) noteInput.disabled = true;
-  // Update write button count
-  const remaining = identifiedCards.filter(c => c.match && !c.skipped).length;
+  updateWriteCount();
+}
+
+function unskipCard(idx) {
+  const card = identifiedCards[idx];
+  card.skipped = false;
+  card.recheckPending = false;
+  const el = document.getElementById(`card-${idx}`);
+  if (el) { el.classList.remove('rejected'); el.classList.remove('recheck'); }
+  const skipBtn = document.getElementById(`skip-btn-${idx}`);
+  if (skipBtn) { skipBtn.textContent = 'Skip'; skipBtn.disabled = false; skipBtn.onclick = () => skipCard(idx); }
+  const recheckBtn = document.getElementById(`recheck-btn-${idx}`);
+  if (recheckBtn) { recheckBtn.disabled = false; recheckBtn.style.opacity = ''; }
+  const noteInput = document.getElementById(`note-${idx}`);
+  if (noteInput) noteInput.disabled = false;
+  updateWriteCount();
+}
+
+function recheckCard(idx) {
+  const card = identifiedCards[idx];
+  card.skipped = true;
+  card.recheckPending = true;
+  const el = document.getElementById(`card-${idx}`);
+  if (el) { el.classList.remove('rejected'); el.classList.add('recheck'); }
+  const skipBtn = document.getElementById(`skip-btn-${idx}`);
+  if (skipBtn) { skipBtn.textContent = '↩ Undo'; skipBtn.disabled = false; skipBtn.onclick = () => unskipCard(idx); }
+  const recheckBtn = document.getElementById(`recheck-btn-${idx}`);
+  if (recheckBtn) { recheckBtn.textContent = '📷 Queued'; recheckBtn.disabled = true; recheckBtn.style.opacity = '0.4'; }
+  const noteInput = document.getElementById(`note-${idx}`);
+  if (noteInput) noteInput.disabled = true;
+  updateWriteCount();
+}
+
+function updateWriteCount() {
+  const visible = identifiedCards.filter(c => c.mergedInto === undefined);
+  const writeCount = visible.filter(c => c.match && !c.skipped).length;
   const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) writeBtn.textContent = `✓ Write ${remaining} Card${remaining !== 1 ? 's' : ''} to Sheet`;
+  if (writeBtn) {
+    writeBtn.textContent = writeCount > 0
+      ? `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`
+      : 'No cards to write';
+  }
 }
 
 async function writeChanges() {
-  const toWrite = identifiedCards.filter(c => c.match && !c.skipped && !c.confirmed && (!c.lowConfidence || c.manuallyIncluded));
-  if (!toWrite.length) { showToast('Nothing to write — flagged cards need "Include anyway" first', ''); return; }
+  const toWrite = identifiedCards.filter(c => c.match && !c.skipped && !c.confirmed);
+  if (!toWrite.length) { showToast('No cards to write', ''); return; }
 
   const btn = document.getElementById('write-btn');
   btn.textContent = 'Writing…';
@@ -1726,7 +1763,7 @@ async function writeChanges() {
 
   for (let i = 0; i < identifiedCards.length; i++) {
     const card = identifiedCards[i];
-    if (!card.match || card.skipped || card.confirmed || (card.lowConfidence && !card.manuallyIncluded)) continue;
+    if (!card.match || card.skipped || card.confirmed) continue;
     const noteEl = document.getElementById(`note-${i}`);
     const finalNote = noteEl ? noteEl.value.trim() : card.note || '';
     const initialNote = card.note || ''; // Claude's auto-built note
@@ -1761,7 +1798,27 @@ function showSuccess() {
   document.getElementById('success-title').textContent = `${total} Card${total !== 1 ? 's' : ''} Logged! 🎉`;
   const setName = document.getElementById('set-select').options[document.getElementById('set-select').selectedIndex]?.text || 'your set';
   document.getElementById('success-msg').textContent = `Written to ${setName}`;
+
+  // Show re-check banner if any cards were flagged for re-scan
+  const recheckCards = identifiedCards.filter(c => c.recheckPending);
+  const recheckBanner = document.getElementById('recheck-banner');
+  if (recheckBanner) {
+    if (recheckCards.length > 0) {
+      recheckBanner.style.display = '';
+      recheckBanner.innerHTML = `<p style="margin:0 0 10px;font-size:14px;color:var(--blue);">📷 ${recheckCards.length} card${recheckCards.length !== 1 ? 's' : ''} queued for re-scan:</p>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text2);">${recheckCards.map(c => `#${c.cardNumber} ${c.playerName}`).join(', ')}</p>
+        <button class="btn btn-primary" style="width:100%" onclick="startRecheckScan()">📷 Re-scan These Cards</button>`;
+    } else {
+      recheckBanner.style.display = 'none';
+    }
+  }
   goScanStep(5);
+}
+
+function startRecheckScan() {
+  // Clear recheck flags and go back to camera — user re-scans manually
+  identifiedCards.forEach(c => { c.recheckPending = false; });
+  resetScan();
 }
 
 function resetScan() {
