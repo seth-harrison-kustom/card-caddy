@@ -1796,6 +1796,7 @@ function updateWriteCount() {
   const recheckCount = visible.filter(c => c.recheckPending).length;
   const writeBtn = document.getElementById('write-btn');
   if (!writeBtn) return;
+  writeBtn.disabled = false; // always re-enable — writeChanges disables it and never restores on success
 
   if (writeCount === 0 && recheckCount > 0) {
     // Nothing left to write — only re-scans queued, go straight to camera
