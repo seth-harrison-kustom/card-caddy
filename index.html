@@ -1509,16 +1509,7 @@ function renderResults() {
   badge.textContent = `${matched}/${total} matched${lowConfCount > 0 ? ` · ${lowConfCount} flagged` : ''}`;
   badge.className = `badge ${matched > 0 ? 'green' : 'red'}`;
 
-  // All non-skipped matched cards are writable — low-conf flag is visual only
-  const writeCount = visible.filter(c => c.match && !c.skipped).length;
-  const writeBtn = document.getElementById('write-btn');
-  if (writeBtn) {
-    writeBtn.textContent = writeCount > 0
-      ? `✓ Write ${writeCount} Card${writeCount !== 1 ? 's' : ''} to Sheet`
-      : 'No cards to write';
-    writeBtn.style.background = '';
-    writeBtn.style.color = '';
-  }
+  updateWriteCount(); // re-enables button and sets correct label
 
   list.innerHTML = identifiedCards.map((card, idx) => {
     // Hide entries merged into another (deduped same-row matches)
@@ -1816,7 +1807,7 @@ function updateWriteCount() {
   }
 }
 
-function writeOrRescan() {
+async function writeOrRescan() {
   const visible = identifiedCards.filter(c => c.mergedInto === undefined);
   const writeCount = visible.filter(c => c.match && !c.skipped).length;
   const recheckCount = visible.filter(c => c.recheckPending).length;
@@ -1826,12 +1817,13 @@ function writeOrRescan() {
     identifiedCards.forEach(c => { c.recheckPending = false; });
     resetScan();
   } else {
-    writeChanges();
+    await writeChanges();
   }
 }
 
 async function writeChanges() {
-  const toWrite = identifiedCards.filter(c => c.match && !c.skipped && !c.confirmed);
+  const toWrite = identifiedCards.filter(c => c.mergedInto === undefined && c.match && !c.skipped && !c.confirmed);
+  console.log('[CardCaddy] writeChanges: toWrite =', toWrite.map(c => `#${c.cardNumber} ${c.playerName}`));
   if (!toWrite.length) { showToast('No cards to write', ''); return; }
 
   const btn = document.getElementById('write-btn');
@@ -1842,35 +1834,44 @@ async function writeChanges() {
   let errorCount = 0;
   const writtenCards = []; // for corrections system
 
-  for (let i = 0; i < identifiedCards.length; i++) {
-    const card = identifiedCards[i];
-    if (!card.match || card.skipped || card.confirmed) continue;
-    const noteEl = document.getElementById(`note-${i}`);
-    const finalNote = noteEl ? noteEl.value.trim() : card.note || '';
-    const initialNote = card.note || ''; // Claude's auto-built note
-    const alreadyCollected = (card.match.data[COL.IN_COLL] || '').trim() === 'x';
-    try {
-      await markCardCollected(card.match.rowNum, finalNote, alreadyCollected);
-      card.confirmed = true;
-      const el = document.getElementById(`card-${i}`);
-      if (el) el.classList.add('confirmed');
-      successCount++;
-      writtenCards.push({ card, initialNote, finalNote });
-    } catch(e) {
-      errorCount++;
-      showToast(`Error on #${card.cardNumber}: ${e.message}`, 'error');
+  try {
+    for (let i = 0; i < identifiedCards.length; i++) {
+      const card = identifiedCards[i];
+      if (card.mergedInto !== undefined || !card.match || card.skipped || card.confirmed) continue;
+      const noteEl = document.getElementById(`note-${i}`);
+      const finalNote = noteEl ? noteEl.value.trim() : card.note || '';
+      const initialNote = card.note || ''; // Claude's auto-built note
+      const alreadyCollected = (card.match.data[COL.IN_COLL] || '').trim() === 'x';
+      try {
+        await markCardCollected(card.match.rowNum, finalNote, alreadyCollected);
+        card.confirmed = true;
+        const el = document.getElementById(`card-${i}`);
+        if (el) el.classList.add('confirmed');
+        successCount++;
+        writtenCards.push({ card, initialNote, finalNote });
+      } catch(e) {
+        errorCount++;
+        console.error('[CardCaddy] write error on card', card.cardNumber, e);
+        showToast(`Error on #${card.cardNumber}: ${e.message}`, 'error');
+      }
+      await sleep(150);
     }
-    await sleep(150);
-  }
 
-  confirmedCount += successCount;
+    confirmedCount += successCount;
 
-  if (errorCount === 0) {
-    checkForCorrections(writtenCards);
-  } else {
-    btn.textContent = `Retry (${errorCount} failed)`;
+    if (errorCount === 0) {
+      checkForCorrections(writtenCards);
+    } else {
+      btn.textContent = `Retry (${errorCount} failed)`;
+      btn.disabled = false;
+      showToast(`${successCount} written, ${errorCount} failed`, 'error');
+    }
+  } catch(e) {
+    // Unexpected error outside per-card handling — surface it and re-enable the button
+    console.error('[CardCaddy] writeChanges unexpected error:', e);
+    showToast(`Write failed: ${e.message}`, 'error');
+    btn.textContent = `Retry`;
     btn.disabled = false;
-    showToast(`${successCount} written, ${errorCount} failed`, 'error');
   }
 }
 
